@@ -18,11 +18,15 @@ To make consolidation of supper orders simple.
 
 ## User Stories
 
-1. As a user, I should be able to easily open up a supper jio and share it with my friends. They can add in their orders, helping me to keep track of the total cost as well.
-
-2. As a supper jio-ee, I want to be able to add in whatever order I want at a price which I define. At the end, I want to be reminded to make payment if I didn’t declare that I paid in the telegram bot.
-
-3. As the person ordering the food, I want to see a clear list of items to be purchased easily, as well as the final price after tax.
+1. As a user, I should be able to easily open up a supper jio.
+2. As a user, I should be able to easily share my supper jio with my friends. 
+3. As a user, I want to see the (estimated0) total cost (with and without tax) of my supper jio.
+4. As a user, I was to see a clear list of items to be purchased
+5. As a supper jio-ee, I can add in my orders.
+6. As a supper jio-ee, I want to be able to amend my orders.
+7. As a supper jio-ee, I want to be able to delete my orders.
+8. As a supper jio-ee, I want to be able to indicate that I have paid.
+9. As a supper jio-ee, I want to be reminded to make payment if I had yet to declare that I have paid in the telegram bot.
 
 ## Features and Timeline
 
@@ -30,18 +34,24 @@ Group chats are often hosted on Telegram, and so a Telegram bot will be suitable
 
 Features to be completed by the mid of June: 
 
-* Individual should be able to add in their own orders
-* Allow host to indicate minimum order, any discounts, order location, cut off timing, other information
+* Supper hosts will be able to create a supper jio in the DMs with the Bot
+  * Host can indicate extra information (eg minimum order, any discounts, order location, cut off timing)
+  * Host can close the supper jio here as well
+* The supper jio can then be shared to any group
+* Individuals should be able to add, update and delete their own orders
 * Bill calculation - GST and Service Charge (if applicable)
-* Final ordering list 
-
+* Produce final ordering list 
 
 Features to be completed by the mid of July:
 
-* Splitting of bill, recurrent reminders for users to pay
+* Automatic splitting of bills
+* Users can indicate that they have paid
+* Recurrent reminders for users to pay if they have yet to indicate they have paid
 * User friendly features - Save previous orders/favourite orders
 
 ## Tech Stack
 
-1. Telegram API
-2. Python
+1. Python
+2. `python-telegram-bot` to interface with the Telegram API. v20 is used despite being a pre-release, as it supports `asyncio`.
+3. Heroku will be the hosting solution, using their provided Heroku Postgres for storage.
+4. `sqlite3` will be used temporarily while prototyping the bot.
