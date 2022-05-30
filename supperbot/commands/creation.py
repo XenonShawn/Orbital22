@@ -2,7 +2,11 @@
 import logging
 
 from telegram import (
-    Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InlineQueryResultArticle,
+    InputTextMessageContent,
 )
 from telegram.constants import ParseMode
 from telegram.ext import CallbackContext, ConversationHandler
@@ -21,12 +25,27 @@ async def create(update: Update, context: CallbackContext) -> CallbackType:
     # TODO: Abstract out the following to a separate method call
     keyboard = [
         [
-            InlineKeyboardButton("McDonalds", callback_data=enums.join(CallbackType.SELECT_RESTAURANT,
-                                                                       Restaurants.MCDONALDS)),
-            InlineKeyboardButton("Al Amaan", callback_data=enums.join(CallbackType.SELECT_RESTAURANT,
-                                                                      Restaurants.ALAMAAN))
+            InlineKeyboardButton(
+                "McDonalds",
+                callback_data=enums.join(
+                    CallbackType.SELECT_RESTAURANT, Restaurants.MCDONALDS
+                ),
+            ),
+            InlineKeyboardButton(
+                "Al Amaan",
+                callback_data=enums.join(
+                    CallbackType.SELECT_RESTAURANT, Restaurants.ALAMAAN
+                ),
+            ),
         ],
-        [InlineKeyboardButton("Others", callback_data=enums.join(CallbackType.SELECT_RESTAURANT, Restaurants.CUSTOM))]
+        [
+            InlineKeyboardButton(
+                "Others",
+                callback_data=enums.join(
+                    CallbackType.SELECT_RESTAURANT, Restaurants.CUSTOM
+                ),
+            )
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -45,8 +64,10 @@ async def additional_details(update: Update, context: CallbackContext) -> Callba
     context.user_data["restaurant"] = enums.parse_callback_data(query.data)[1]
     restaurant = enums.restaurant_name[context.user_data["restaurant"]]
 
-    message = f"You are creating a supper jio order for restaurant: <b>{restaurant}</b>\n\n" \
-              "Please type any additional information (eg. Delivery fees, close off timing, etc)"
+    message = (
+        f"You are creating a supper jio order for restaurant: <b>{restaurant}</b>\n\n"
+        "Please type any additional information (eg. Delivery fees, close off timing, etc)"
+    )
 
     await query.edit_message_text(message, reply_markup=None, parse_mode=ParseMode.HTML)
     await query.answer()
@@ -57,19 +78,35 @@ async def finished_creation(update: Update, context: CallbackContext) -> int:
     """Presents the final jio text after finishing the initialisation process."""
 
     information = update.message.text
-    order_id = db.create_jio(update.effective_user.id, context.user_data["restaurant"], information)
+    order_id = db.create_jio(
+        update.effective_user.id, context.user_data["restaurant"], information
+    )
 
-    context.user_data['information'] = information
+    context.user_data["information"] = information
 
     message = format_order_message(order_id)
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📢 Share this Jio!", switch_inline_query=f"order{order_id}")],
-        [InlineKeyboardButton("🗒️ Edit Description", callback_data=CallbackType.AMEND_DESCRIPTION),
-         InlineKeyboardButton("🔒 Close the Jio", callback_data=CallbackType.CLOSE_JIO)]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "📢 Share this Jio!", switch_inline_query=f"order{order_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🗒️ Edit Description", callback_data=CallbackType.AMEND_DESCRIPTION
+                ),
+                InlineKeyboardButton(
+                    "🔒 Close the Jio", callback_data=CallbackType.CLOSE_JIO
+                ),
+            ],
+        ]
+    )
 
-    msg = await update.effective_chat.send_message(text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+    msg = await update.effective_chat.send_message(
+        text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
+    )
     db.update_jio_message_id(order_id, msg.chat_id, msg.message_id)
 
     return ConversationHandler.END
@@ -81,9 +118,11 @@ def format_order_message(order_id: int) -> str:
     restaurant, description = db.get_jio(order_id)
     restaurant = enums.restaurant_name[restaurant]
 
-    message = f"Supper Jio Order #{order_id}: <b>{restaurant}</b>\n" \
-              f"Additional Information: \n{description}\n\n" \
-              "Current Orders:\n"
+    message = (
+        f"Supper Jio Order #{order_id}: <b>{restaurant}</b>\n"
+        f"Additional Information: \n{description}\n\n"
+        "Current Orders:\n"
+    )
 
     orders = db.get_orders(order_id)
 
@@ -93,7 +132,7 @@ def format_order_message(order_id: int) -> str:
 
     for user_id, order in orders.items():
         user_display_name = db.get_user_name(user_id)
-        message += f"{user_display_name} -- " + "; ".join(order) + '\n'
+        message += f"{user_display_name} -- " + "; ".join(order) + "\n"
 
     return message
 
@@ -110,22 +149,29 @@ async def inline_query(update: Update, context: CallbackContext) -> None:
     # TODO: Abstract out this part
     order_id = int(query[5:])
 
-    restaurant, description = db.get_jio(order_id)  # TODO: Check for if function returns `None`
+    # TODO: Check for if function returns `None`
+    restaurant, description = db.get_jio(order_id)
     restaurant = enums.restaurant_name[restaurant]
     deep_link = create_deep_linked_url(context.bot.username, f"order{order_id}")
 
     # TODO: Check current orders
-    message = f"Supper Jio Order #{order_id}: <b>{restaurant}</b>\n" \
-              f"Additional Information: \n{description}\n\n" \
-              "Current Orders:\nNone\n\n"
+    message = (
+        f"Supper Jio Order #{order_id}: <b>{restaurant}</b>\n"
+        f"Additional Information: \n{description}\n\n"
+        "Current Orders:\nNone\n\n"
+    )
 
     results = [
         InlineQueryResultArticle(
             id=f"order{order_id}",
             title=f"Order {order_id}",
             description=f"Jio for {restaurant}",
-            input_message_content=InputTextMessageContent(message, parse_mode=ParseMode.HTML),
-            reply_markup=InlineKeyboardMarkup.from_button(InlineKeyboardButton(text="➕ Add Order", url=deep_link))
+            input_message_content=InputTextMessageContent(
+                message, parse_mode=ParseMode.HTML
+            ),
+            reply_markup=InlineKeyboardMarkup.from_button(
+                InlineKeyboardButton(text="➕ Add Order", url=deep_link)
+            ),
         )
     ]
 

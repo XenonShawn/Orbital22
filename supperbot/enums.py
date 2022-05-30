@@ -41,6 +41,7 @@ class Restaurants(str, Enum):
 
     Each string should be no longer than 9 characters.
     """
+
     CUSTOM = "custom"
     MCDONALDS = "mcdonalds"
     ALAMAAN = "alamaan"
@@ -49,12 +50,12 @@ class Restaurants(str, Enum):
 restaurant_name = {
     Restaurants.CUSTOM: "Others",
     Restaurants.MCDONALDS: "McDonalds",
-    Restaurants.ALAMAAN: "Al Amaan"
+    Restaurants.ALAMAAN: "Al Amaan",
 }
 
 
 def regex_pattern(callback_data: str) -> str:
-    return '^' + callback_data + '$'
+    return "^" + callback_data + "$"
 
 
 def join(*args: str) -> str:
@@ -66,5 +67,5 @@ def parse_callback_data(callback_data: str) -> list[str]:
 
 
 # Useful Regex Variables
-RESTAURANTS_REGEX = '|'.join(Restaurants)
-CALLBACK_REGEX = '|'.join(CallbackType)
+RESTAURANTS_REGEX = "|".join(Restaurants)
+CALLBACK_REGEX = "|".join(CallbackType)
