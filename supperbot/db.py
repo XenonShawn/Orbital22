@@ -20,32 +20,32 @@ _con.execute("PRAGMA foreign_keys = 1")
 # Set up tables
 _con.execute(
     """CREATE TABLE IF NOT EXISTS SupperJios (
-                    id              INTEGER PRIMARY KEY NOT NULL,
-                    description     TEXT NOT NULL,
-                    restaurant      TEXT NOT NULL,
-                    owner_id        INTEGER NOT NULL,
-                    status          INTEGER NOT NULL,
-                    chat_id         INTEGER,
-                    message_id      INTEGER UNIQUE,
-                    timestamp       TEXT NOT NULL)"""
+        id              INTEGER PRIMARY KEY NOT NULL,
+        description     TEXT NOT NULL,
+        restaurant      TEXT NOT NULL,
+        owner_id        INTEGER NOT NULL,
+        status          INTEGER NOT NULL,
+        chat_id         INTEGER,
+        message_id      INTEGER UNIQUE,
+        timestamp       TEXT NOT NULL)"""
 )
 _con.execute(
     """CREATE TABLE IF NOT EXISTS Orders (
-                    jio_id          INTEGER NOT NULL,
-                    user_id         INTEGER NOT NULL,
-                    food            TEXT NOT NULL,
-                    FOREIGN KEY (jio_id) REFERENCES SupperJios(id))"""
+        jio_id          INTEGER NOT NULL,
+        user_id         INTEGER NOT NULL,
+        food            TEXT NOT NULL,
+        FOREIGN KEY (jio_id) REFERENCES SupperJios(id))"""
 )
 _con.execute(
     """CREATE TABLE IF NOT EXISTS Messages (
-                    jio_id          INTEGER NOT NULL,
-                    message_id      TEXT UNIQUE NOT NULL,
-                    FOREIGN KEY(jio_id) REFERENCES SupperJios(id))"""
+        jio_id          INTEGER NOT NULL,
+        message_id      TEXT UNIQUE NOT NULL,
+        FOREIGN KEY(jio_id) REFERENCES SupperJios(id))"""
 )
 _con.execute(
     """CREATE TABLE IF NOT EXISTS Users (
-                    user_id         INTEGER PRIMARY KEY NOT NULL,
-                    display_name    TEXT NOT NULL)"""
+        user_id         INTEGER PRIMARY KEY NOT NULL,
+        display_name    TEXT NOT NULL)"""
 )
 
 

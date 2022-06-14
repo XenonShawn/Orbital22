@@ -9,14 +9,14 @@ from telegram import (
     InputTextMessageContent,
 )
 from telegram.constants import ParseMode
-from telegram.ext import CallbackContext, ConversationHandler
+from telegram.ext import ContextTypes, ConversationHandler
 from telegram.helpers import create_deep_linked_url
 
 from supperbot import db, enums
 from supperbot.enums import CallbackType, Restaurants
 
 
-async def create(update: Update, context: CallbackContext) -> CallbackType:
+async def create(update: Update, _) -> CallbackType:
     """Main command for creating a new jio."""
 
     # TODO: Check that the user does not have a supper jio currently being created
@@ -57,7 +57,7 @@ async def create(update: Update, context: CallbackContext) -> CallbackType:
     return CallbackType.ADDITIONAL_DETAILS
 
 
-async def additional_details(update: Update, context: CallbackContext) -> CallbackType:
+async def additional_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Collection of additional details and description for the supper jio."""
 
     query = update.callback_query
@@ -74,7 +74,7 @@ async def additional_details(update: Update, context: CallbackContext) -> Callba
     return CallbackType.FINISHED_CREATION
 
 
-async def finished_creation(update: Update, context: CallbackContext) -> int:
+async def finished_creation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Presents the final jio text after finishing the initialisation process."""
 
     information = update.message.text
@@ -137,7 +137,7 @@ def format_order_message(order_id: int) -> str:
     return message
 
 
-async def inline_query(update: Update, context: CallbackContext) -> None:
+async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles the inline queries from sharing jios."""
 
     query = update.inline_query.query
@@ -178,7 +178,7 @@ async def inline_query(update: Update, context: CallbackContext) -> None:
     await update.inline_query.answer(results)
 
 
-async def shared_jio(update: Update, context: CallbackContext) -> None:
+async def shared_jio(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     """Updates the database with the new message id after a jio has been shared to a group."""
 
     chosen_result = update.chosen_inline_result
