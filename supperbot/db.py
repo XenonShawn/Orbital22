@@ -6,8 +6,6 @@ from datetime import datetime
 from typing import Optional, Union
 from enum import IntEnum
 
-from supperbot.enums import Restaurants
-
 
 class Stage(IntEnum):
     created = 0
@@ -49,7 +47,7 @@ _con.execute(
 )
 
 
-def create_jio(owner_id: int, restaurant: Restaurants, description: str) -> int:
+def create_jio(owner_id: int, restaurant: str, description: str) -> int:
     """
     Creates a new supper jio entry in the database, and returns the supper jio order number.
     """

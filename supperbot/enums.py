@@ -27,31 +27,14 @@ class CallbackType(str, Enum):
     VIEW_JIOS = "030"
 
     # Modifying of Orders - starts with 1
-    ADD_ORDER = "101"
-    CONFIRM_ORDER = "102"
+    ADD_ORDER = "100"
+    CONFIRM_ORDER = "101"
 
-    MODIFY_ORDER = "111"
-    DELETE_ORDER = "121"
+    MODIFY_ORDER = "110"
 
+    DELETE_ORDER = "120"
 
-@unique
-class Restaurants(str, Enum):
-    """
-    Enumerations for the restaurants as part of the callbacks.
-
-    Each string should be no longer than 9 characters.
-    """
-
-    CUSTOM = "custom"
-    MCDONALDS = "mcdonalds"
-    ALAMAAN = "alamaan"
-
-
-restaurant_name = {
-    Restaurants.CUSTOM: "Others",
-    Restaurants.MCDONALDS: "McDonalds",
-    Restaurants.ALAMAAN: "Al Amaan",
-}
+    REFRESH_ORDER = "130"
 
 
 def regex_pattern(callback_data: str) -> str:
@@ -67,5 +50,4 @@ def parse_callback_data(callback_data: str) -> list[str]:
 
 
 # Useful Regex Variables
-RESTAURANTS_REGEX = "|".join(Restaurants)
 CALLBACK_REGEX = "|".join(CallbackType)

@@ -11,7 +11,7 @@ from telegram.helpers import create_deep_linked_url
 from supperbot import db, enums
 from supperbot.enums import CallbackType
 
-from supperbot.commands.creation import format_order_message
+from supperbot.commands.helper import format_order_message
 
 
 async def interested_user(update: Update, context: CallbackContext) -> None:
@@ -28,8 +28,8 @@ async def interested_user(update: Update, context: CallbackContext) -> None:
 
 async def format_and_send_user_orders(update: Update, order_id: int) -> None:
     # TODO: check if order even exists
+    # TODO: check if order is already closed
     restaurant, description = db.get_jio(order_id)
-    restaurant = enums.restaurant_name[restaurant]
 
     message = (
         f"Supper Jio Order #{order_id}: <b>{restaurant}</b>\n"
@@ -131,8 +131,8 @@ async def update_orders(bot: telegram.Bot, order_id: int) -> None:
             parse_mode=ParseMode.HTML,
             reply_markup=keyboard,
         )
-    except telegram.error.BadRequest:
-        logging.error(f"Unable to edit original jio message for order {order_id}")
+    except telegram.error.BadRequest as e:
+        logging.error(f"Unable to edit original jio message for order {order_id}: {e}")
 
     # Edit shared jio messages
     for message_id in messages_to_edit:
@@ -145,5 +145,5 @@ async def update_orders(bot: telegram.Bot, order_id: int) -> None:
                     InlineKeyboardButton(text="Add Order", url=deep_link)
                 ),
             )
-        except telegram.error.BadRequest:
-            logging.error(f"Unable to edit message with message_id {message_id}")
+        except telegram.error.BadRequest as e:
+            logging.error(f"Unable to edit message with message_id {message_id}: {e}")

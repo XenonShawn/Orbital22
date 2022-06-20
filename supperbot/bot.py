@@ -6,7 +6,6 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
     CommandHandler,
-    ContextTypes,
     ConversationHandler,
     ChosenInlineResultHandler,
     InlineQueryHandler,
@@ -58,9 +57,7 @@ create_jio_conv_handler = ConversationHandler(
     ],
     states={
         CallbackType.ADDITIONAL_DETAILS: [
-            CallbackQueryHandler(
-                additional_details, pattern=CallbackType.SELECT_RESTAURANT
-            )
+            MessageHandler(filters.TEXT & ~filters.COMMAND, additional_details)
         ],
         CallbackType.FINISHED_CREATION: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, finished_creation)
