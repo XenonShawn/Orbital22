@@ -14,8 +14,8 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.helpers import create_deep_linked_url
 
-from supperbot import db
-from supperbot.enums import CallbackType
+from supperbot.db import db
+from supperbot.enums import CallbackType, join
 from supperbot.commands.helper import format_order_message
 
 
@@ -71,25 +71,28 @@ async def finished_creation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     """Presents the final jio text after finishing the initialisation process."""
 
     information = update.message.text
-    order_id = db.create_jio(
+    jio = db.create_jio(
         update.effective_user.id, context.user_data["restaurant"], information
     )
 
-    message = format_order_message(order_id)
+    message = format_order_message(jio)
+    jio_str = str(jio.id)
 
     keyboard = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "📢 Share this Jio!", switch_inline_query=f"order{order_id}"
+                    "📢 Share this Jio!", switch_inline_query="order" + jio_str
                 )
             ],
             [
                 InlineKeyboardButton(
-                    "🗒️ Edit Description", callback_data=CallbackType.AMEND_DESCRIPTION
+                    "🗒️ Edit Description",
+                    callback_data=join(CallbackType.AMEND_DESCRIPTION, jio_str),
                 ),
                 InlineKeyboardButton(
-                    "🔒 Close the Jio", callback_data=CallbackType.CLOSE_JIO
+                    "🔒 Close the Jio",
+                    callback_data=join(CallbackType.CLOSE_JIO, jio_str),
                 ),
             ],
         ]
@@ -98,7 +101,7 @@ async def finished_creation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     msg = await update.effective_chat.send_message(
         text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
     )
-    db.update_jio_message_id(order_id, msg.chat_id, msg.message_id)
+    db.update_jio_message_id(jio.id, msg.chat_id, msg.message_id)
 
     context.user_data["create"] = False
 
@@ -118,21 +121,22 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     order_id = int(query[5:])
 
     # TODO: Check for if function returns `None`
-    restaurant, description = db.get_jio(order_id)
+    jio = db.get_jio(order_id)
     deep_link = create_deep_linked_url(context.bot.username, f"order{order_id}")
 
     # TODO: Check current orders
     message = (
-        f"Supper Jio Order #{order_id}: <b>{restaurant}</b>\n"
-        f"Additional Information: \n{description}\n\n"
+        f"Supper Jio Order #{jio.id}: <b>{jio.restaurant}</b>\n"
+        f"Additional Information: \n{jio.description}\n\n"
         "Current Orders:\nNone\n\n"
     )
 
+    # TODO: Improve on the quality of the search.
     results = [
         InlineQueryResultArticle(
-            id=f"order{order_id}",
-            title=f"Order {order_id}",
-            description=f"Jio for {restaurant}",
+            id=f"order{jio.id}",
+            title=f"Order {jio.id}",
+            description=f"Jio for {jio.restaurant}",
             input_message_content=InputTextMessageContent(
                 message, parse_mode=ParseMode.HTML
             ),
@@ -151,7 +155,7 @@ async def shared_jio(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     chosen_result = update.chosen_inline_result
 
     # TODO: Abstract this part
-    order_id = int(chosen_result.result_id[5:])
+    jio_id = int(chosen_result.result_id[5:])
     msg_id = chosen_result.inline_message_id
 
-    db.new_msg(order_id, msg_id)
+    db.new_msg(jio_id, msg_id)

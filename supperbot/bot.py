@@ -26,8 +26,8 @@ from supperbot.commands.creation import (
     shared_jio,
     finished_creation,
 )
-
 from supperbot.commands.ordering import interested_user, add_order, confirm_order
+from supperbot.commands.close import close_order
 
 
 async def not_implemented_callback(update: Update, _) -> None:

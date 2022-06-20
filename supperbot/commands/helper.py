@@ -1,18 +1,17 @@
-from supperbot import db
+from supperbot.db import db
+from supperbot.db.models import SupperJio
 
 
-def format_order_message(order_id: int) -> str:
+def format_order_message(jio: SupperJio) -> str:
     """Helper function to format the text for the jio messages."""
 
-    restaurant, description = db.get_jio(order_id)
-
     message = (
-        f"Supper Jio Order #{order_id}: <b>{restaurant}</b>\n"
-        f"Additional Information: \n{description}\n\n"
+        f"Supper Jio Order #{jio.id}: <b>{jio.restaurant}</b>\n"
+        f"Additional Information: \n{jio.description}\n\n"
         "Current Orders:\n"
     )
 
-    orders = db.get_orders(order_id)
+    orders = db.get_orders(jio.id)
 
     if not orders:
         # No orders yet
