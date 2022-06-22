@@ -36,6 +36,14 @@ class CallbackType(str, Enum):
 
     REFRESH_ORDER = "130"
 
+    # Closed Jios for host - starts with 2
+    REOPEN_JIO = "200"
+
+    CREATE_ORDERING_LIST = "210"
+
+    # Closed jios for users - starts with 3
+    DECLARE_PAYMENT = "300"
+
 
 def regex_pattern(callback_data: str) -> str:
     return "^" + callback_data + "$"

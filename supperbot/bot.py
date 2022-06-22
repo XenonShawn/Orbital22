@@ -13,12 +13,9 @@ from telegram.ext import (
     filters,
 )
 
-from config import TOKEN
 from supperbot import enums
 from supperbot.enums import CallbackType
-
 from supperbot.commands.start import start_group, start, help_command
-
 from supperbot.commands.creation import (
     create,
     additional_details,
@@ -27,7 +24,9 @@ from supperbot.commands.creation import (
     finished_creation,
 )
 from supperbot.commands.ordering import interested_user, add_order, confirm_order
-from supperbot.commands.close import close_order
+from supperbot.commands.close import close_jio, reopen_jio, create_ordering_list
+
+from config import TOKEN
 
 
 async def not_implemented_callback(update: Update, _) -> None:
@@ -85,6 +84,19 @@ application.add_handler(
     CommandHandler("start", interested_user, filters.Regex(r"order\d"))
 )
 
+# Close and reopen jio handler
+application.add_handler(CallbackQueryHandler(close_jio, pattern=CallbackType.CLOSE_JIO))
+application.add_handler(
+    CallbackQueryHandler(reopen_jio, pattern=CallbackType.REOPEN_JIO)
+)
+
+# Create ordering list handler
+application.add_handler(
+    CallbackQueryHandler(
+        create_ordering_list, pattern=CallbackType.CREATE_ORDERING_LIST
+    )
+)
+
 # /start and /help command handler
 application.add_handler(CommandHandler("start", start_group, ~filters.ChatType.PRIVATE))
 application.add_handler(CommandHandler("start", start))
@@ -100,8 +112,8 @@ unimplemented_callbacks = "|".join(
         CallbackType.MODIFY_ORDER,
         CallbackType.DELETE_ORDER,
         CallbackType.AMEND_DESCRIPTION,
-        CallbackType.CLOSE_JIO,
         CallbackType.VIEW_JIOS,
+        CallbackType.DECLARE_PAYMENT,
     )
 )
 application.add_handler(

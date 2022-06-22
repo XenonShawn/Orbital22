@@ -16,14 +16,14 @@ from telegram.helpers import create_deep_linked_url
 
 from supperbot.db import db
 from supperbot.enums import CallbackType, join
-from supperbot.commands.helper import format_order_message
+from supperbot.commands.helper import format_jio_message, main_message_keyboard_markup
 
 
 async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> CallbackType:
     """Main command for creating a new jio."""
 
     # TODO: Check that the user does not have a supper jio currently being created
-    if context.user_data.get("create", True):
+    if context.user_data.get("create", False):
         pass
 
     # User is not currently creating an existing supper jio.
@@ -75,28 +75,8 @@ async def finished_creation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         update.effective_user.id, context.user_data["restaurant"], information
     )
 
-    message = format_order_message(jio)
-    jio_str = str(jio.id)
-
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "📢 Share this Jio!", switch_inline_query="order" + jio_str
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🗒️ Edit Description",
-                    callback_data=join(CallbackType.AMEND_DESCRIPTION, jio_str),
-                ),
-                InlineKeyboardButton(
-                    "🔒 Close the Jio",
-                    callback_data=join(CallbackType.CLOSE_JIO, jio_str),
-                ),
-            ],
-        ]
-    )
+    message = format_jio_message(jio)
+    keyboard = main_message_keyboard_markup(jio)
 
     msg = await update.effective_chat.send_message(
         text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML

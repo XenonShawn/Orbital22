@@ -6,12 +6,13 @@ from sqlalchemy import (
     Integer,
     String,
     create_engine,
+    PrimaryKeyConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
 
 # TODO: Make this configurable
-engine = create_engine("sqlite:///database.db", future=True)
+engine = create_engine("sqlite://", future=True, echo=False)
 
 
 Base = declarative_base()
@@ -20,6 +21,11 @@ Base = declarative_base()
 class Stage(IntEnum):
     CREATED = 0
     CLOSED = 1
+
+
+class PaidStatus(IntEnum):
+    NOT_PAID = 0
+    PAID = 1
 
 
 def Column(*args, **kwargs):
@@ -35,6 +41,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     display_name = Column(String)
+    chat_id = Column(Integer)
 
 
 class SupperJio(Base):
@@ -51,6 +58,9 @@ class SupperJio(Base):
     message_id = Column(Integer, unique=True, nullable=True)
     timestamp = Column(String)
 
+    def is_closed(self):
+        return self.status == Stage.CLOSED
+
     def __repr__(self):
         return f"Order {self.id}: {self.restaurant}"
 
@@ -64,7 +74,7 @@ class Message(Base):
     jio_id = Column(Integer, ForeignKey("supper_jios.id"))
     message_id = Column(String, unique=True)
 
-    # jio = relationship("SupperJio", backref="messages")
+    jio = relationship("SupperJio", backref="messages")
 
     def __repr__(self):
         return f"SharedMessage({self.jio_id=}, {self.message_id=})"
@@ -75,13 +85,16 @@ class Order(Base):
 
     __tablename__ = "orders"
 
-    id = Column(Integer, primary_key=True)
     jio_id = Column(Integer, ForeignKey("supper_jios.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
-    food = Column(String)
+    food = Column(String)  # Tab separated
+    paid = Column(Integer)
+    message_id = Column(Integer, unique=True, nullable=True)
 
-    # user = relationship("User", backref="orders")
-    # jio = relationship("SupperJio", backref="orders")
+    __table_args__ = (PrimaryKeyConstraint("jio_id", "user_id"),)
+
+    user = relationship("User", backref="orders")
+    jio = relationship("SupperJio", backref="orders")
 
     def __repr__(self):
         return f"Order {self.jio_id}: ({self.user_id=}) {self.food}"
