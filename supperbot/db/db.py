@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime
 
 from sqlalchemy import select, update

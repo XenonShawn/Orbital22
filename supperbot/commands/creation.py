@@ -15,7 +15,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from telegram.helpers import create_deep_linked_url
 
 from supperbot.db import db
-from supperbot.enums import CallbackType, join
+from supperbot.enums import CallbackType
 from supperbot.commands.helper import format_jio_message, main_message_keyboard_markup
 
 
