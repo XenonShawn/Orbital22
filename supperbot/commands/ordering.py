@@ -44,15 +44,15 @@ async def interested_user(update: Update, context: CallbackContext) -> None:
 async def format_and_send_user_orders(update: Update, jio_id: int) -> None:
     # TODO: check if order even exists
     # TODO: check if order is already closed
-    jio = db.get_jio(jio_id)
+    order = db.get_order(jio_id, update.effective_user.id)
 
-    message = format_order_message(jio, update.effective_user.id)
-    keyboard = order_message_keyboard_markup(jio)
+    message = format_order_message(order)
+    keyboard = order_message_keyboard_markup(order)
 
     msg = await update.effective_chat.send_message(
         text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
     )
-    db.update_order_message_id(jio.id, update.effective_user.id, msg.message_id)
+    db.update_order_message_id(order.jio.id, order.user_id, msg.message_id)
 
 
 async def add_order(update: Update, context: CallbackContext):
@@ -82,7 +82,7 @@ async def confirm_order(update: Update, context: CallbackContext):
     # TODO: Investigate the error that occurs here for some reason - sometimes update.message == None
     food = update.message.text
     jio_id = context.user_data["current_order"]
-    db.add_order(jio_id, update.effective_user.id, food)
+    db.add_food_order(jio_id, update.effective_user.id, food)
     del context.user_data["current_order"]
 
     await format_and_send_user_orders(update, jio_id)

@@ -8,7 +8,7 @@ from telegram.helpers import create_deep_linked_url
 from supperbot import enums
 from supperbot.enums import CallbackType, join
 from supperbot.db import db
-from supperbot.db.models import SupperJio
+from supperbot.db.models import SupperJio, Order
 
 
 def format_jio_message(jio: SupperJio) -> str:
@@ -20,15 +20,19 @@ def format_jio_message(jio: SupperJio) -> str:
         "Current Orders:\n"
     )
 
-    orders = db.get_orders(jio.id)
+    orders = db.get_list_orders_jio(jio.id)
 
     if not orders:
         # No orders yet
         return message + "None"
 
-    for user_id, order in orders.items():
-        user_display_name = db.get_user_name(user_id)
-        message += f"{user_display_name} -- " + "; ".join(order) + "\n"
+    for order in orders:
+        temp = f"{order.user.display_name} -- " + "; ".join(order.food_list) + "\n"
+
+        if order.has_paid():
+            temp = "<s>" + temp + "</s> Paid"
+
+        message += temp
 
     if jio.is_closed():
         message += "\n🛑 Jio is closed! 🛑"
@@ -128,15 +132,18 @@ async def update_consolidated_orders(bot: Bot, jio_id: int) -> None:
             logging.error(f"Unable to edit message with message_id {message_id}: {e}")
 
 
-def format_order_message(jio: SupperJio, user_id: int) -> str:
+def format_order_message(order: Order) -> str:
+    jio = order.jio
     message = (
         f"Supper Jio Order #{jio.id}: <b>{jio.restaurant}</b>\n"
         f"Additional Information: \n{jio.description}\n\n"
         "Your Orders:\n"
     )
 
-    food_list = db.get_user_orders(jio.id, user_id)
-    message += "\n".join(food_list) if food_list else "None"
+    message += "\n".join(order.food_list) if order.food_list else "None"
+
+    if order.has_paid():
+        message += "\n\n💰 You have declared payment! 💰"
 
     if jio.is_closed():
         message += "\n\n🛑 Jio is closed! 🛑"
@@ -144,32 +151,45 @@ def format_order_message(jio: SupperJio, user_id: int) -> str:
     return message
 
 
-def order_message_keyboard_markup(jio: SupperJio) -> InlineKeyboardMarkup:
-    jio_str = str(jio.id)
+def order_message_keyboard_markup(order: Order) -> InlineKeyboardMarkup | None:
+    jio = order.jio
+    jio_str = str(order.jio_id)
 
-    if jio.is_closed():
+    if not jio.is_closed():
+        return InlineKeyboardMarkup.from_row(
+            [
+                InlineKeyboardButton(
+                    "➕ Add Order",
+                    callback_data=enums.join(CallbackType.ADD_ORDER, jio_str),
+                ),
+                InlineKeyboardButton(
+                    "🤔 Modify Order",
+                    callback_data=enums.join(CallbackType.MODIFY_ORDER, jio_str),
+                ),
+                InlineKeyboardButton(
+                    "❌ Delete Order",
+                    callback_data=enums.join(CallbackType.DELETE_ORDER, jio_str),
+                ),
+            ]
+        )
+
+    if order.has_paid():
         return InlineKeyboardMarkup.from_button(
             InlineKeyboardButton(
-                "Declare Payment",
-                callback_data=join(CallbackType.DECLARE_PAYMENT, jio_str),
+                "Undo Payment Declaration",
+                callback_data=join(CallbackType.UNDO_PAYMENT, jio_str),
             )
         )
 
-    return InlineKeyboardMarkup.from_row(
-        [
-            InlineKeyboardButton(
-                "➕ Add Order",
-                callback_data=enums.join(CallbackType.ADD_ORDER, jio_str),
-            ),
-            InlineKeyboardButton(
-                "🤔 Modify Order",
-                callback_data=enums.join(CallbackType.MODIFY_ORDER, jio_str),
-            ),
-            InlineKeyboardButton(
-                "❌ Delete Order",
-                callback_data=enums.join(CallbackType.DELETE_ORDER, jio_str),
-            ),
-        ]
+    if not order.food_list:
+        # User doesn't even have a food order. Don't let them declare payment.
+        return None
+
+    return InlineKeyboardMarkup.from_button(
+        InlineKeyboardButton(
+            "Declare Payment",
+            callback_data=join(CallbackType.DECLARE_PAYMENT, jio_str),
+        )
     )
 
 
@@ -179,12 +199,11 @@ async def update_individuals_order(bot: Bot, jio_id: int) -> None:
     food orders.
     """
     lst = db.get_list_orders_jio(jio_id)
-    jio = db.get_jio(jio_id)
 
     for order in lst:
         try:
-            text = format_order_message(jio, order.user_id)
-            markup = order_message_keyboard_markup(jio)
+            text = format_order_message(order)
+            markup = order_message_keyboard_markup(order)
 
             await bot.edit_message_text(
                 text,

@@ -25,6 +25,7 @@ from supperbot.commands.creation import (
 )
 from supperbot.commands.ordering import interested_user, add_order, confirm_order
 from supperbot.commands.close import close_jio, reopen_jio, create_ordering_list
+from supperbot.commands.payment import declare_payment, undo_payment
 
 from config import TOKEN
 
@@ -35,9 +36,8 @@ async def not_implemented_callback(update: Update, _) -> None:
 
 
 async def unrecognized_callback(update: Update, _) -> None:
-    query = update.callback_query
-    await query.answer()
-    logging.error(f"Unexpected callback data received: {query.data}")
+    await not_implemented_callback(update, _)
+    logging.error(f"Unexpected callback data received: {update.callback_query.data}")
 
 
 async def set_commands(context: CallbackContext) -> None:
@@ -46,6 +46,7 @@ async def set_commands(context: CallbackContext) -> None:
 
 application = ApplicationBuilder().concurrent_updates(False).token(TOKEN).build()
 application.job_queue.run_once(set_commands, 0)
+
 
 # Handler for the creation of a supper jio
 create_jio_conv_handler = ConversationHandler(
@@ -65,6 +66,7 @@ create_jio_conv_handler = ConversationHandler(
     fallbacks=[],
 )
 application.add_handler(create_jio_conv_handler)
+
 
 # Handler for adding of orders to a jio
 add_order_conv_handler = ConversationHandler(
@@ -95,6 +97,14 @@ application.add_handler(
     CallbackQueryHandler(
         create_ordering_list, pattern=CallbackType.CREATE_ORDERING_LIST
     )
+)
+
+# Payment handlers
+application.add_handler(
+    CallbackQueryHandler(declare_payment, pattern=CallbackType.DECLARE_PAYMENT)
+)
+application.add_handler(
+    CallbackQueryHandler(undo_payment, pattern=CallbackType.UNDO_PAYMENT)
 )
 
 # /start and /help command handler
