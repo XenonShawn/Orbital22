@@ -11,11 +11,12 @@ from telegram import (
     ReplyKeyboardRemove,
 )
 from telegram.constants import ParseMode
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.helpers import create_deep_linked_url
 
 from supperbot.db import db
-from supperbot.enums import CallbackType
+from supperbot.enums import CallbackType, parse_callback_data
 from supperbot.commands.helper import format_jio_message, main_message_keyboard_markup
 
 
@@ -75,8 +76,9 @@ async def finished_creation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         update.effective_user.id, context.user_data["restaurant"], information
     )
 
+    # TODO: The following part is repeated in `resend_main_message`. Maybe refactor?
     message = format_jio_message(jio)
-    keyboard = main_message_keyboard_markup(jio)
+    keyboard = main_message_keyboard_markup(jio, context.bot)
 
     msg = await update.effective_chat.send_message(
         text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
@@ -104,12 +106,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     jio = db.get_jio(order_id)
     deep_link = create_deep_linked_url(context.bot.username, f"order{order_id}")
 
-    # TODO: Check current orders
-    message = (
-        f"Supper Jio Order #{jio.id}: <b>{jio.restaurant}</b>\n"
-        f"Additional Information: \n{jio.description}\n\n"
-        "Current Orders:\nNone\n\n"
-    )
+    message = format_jio_message(jio)
 
     # TODO: Improve on the quality of the search.
     results = [
@@ -139,3 +136,27 @@ async def shared_jio(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     msg_id = chosen_result.inline_message_id
 
     db.new_msg(jio_id, msg_id)
+
+
+async def resend_main_message(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+
+    query = update.callback_query
+    jio_id = int(parse_callback_data(query.data)[1])
+
+    jio = db.get_jio(jio_id)
+
+    # Try editing the previous main message
+    try:
+        await update.effective_message.edit_reply_markup(None)
+    except BadRequest as e:
+        logging.error(f"Unable to edit main message for jio {jio}: {e}")
+
+    message = format_jio_message(jio)
+    keyboard = main_message_keyboard_markup(jio, context.bot)
+
+    msg = await update.effective_chat.send_message(
+        text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
+    )
+    db.update_jio_message_id(jio.id, msg.chat_id, msg.message_id)

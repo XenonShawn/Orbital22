@@ -20,19 +20,19 @@ def format_jio_message(jio: SupperJio) -> str:
         "Current Orders:\n"
     )
 
-    orders = db.get_list_orders_jio(jio.id)
+    orders = db.get_list_complete_orders(jio.id)
 
     if not orders:
         # No orders yet
         return message + "None"
 
     for order in orders:
-        temp = f"{order.user.display_name} -- " + "; ".join(order.food_list) + "\n"
+        temp = f"{order.user.display_name} -- " + "; ".join(order.food_list)
 
         if order.has_paid():
             temp = "<s>" + temp + "</s> Paid"
 
-        message += temp
+        message += temp + "\n"
 
     if jio.is_closed():
         message += "\n🛑 Jio is closed! 🛑"
@@ -40,7 +40,14 @@ def format_jio_message(jio: SupperJio) -> str:
     return message
 
 
-def main_message_keyboard_markup(jio: SupperJio) -> InlineKeyboardMarkup:
+#
+# MAIN MESSAGE HELPER FUNCTIONS
+#
+# Main message being the control panel message sent to the jio host
+#
+
+
+def main_message_keyboard_markup(jio: SupperJio, bot: Bot) -> InlineKeyboardMarkup:
     jio_str = str(jio.id)
 
     if jio.is_closed():
@@ -54,7 +61,15 @@ def main_message_keyboard_markup(jio: SupperJio) -> InlineKeyboardMarkup:
                     "✍️Create Ordering List",
                     callback_data=join(CallbackType.CREATE_ORDERING_LIST, jio_str),
                 ),
-            ]
+                InlineKeyboardButton(
+                    "🔔 Ping Unpaid",
+                    callback_data=join(CallbackType.PING_ALL_UNPAID, jio_str),
+                ),
+                InlineKeyboardButton(
+                    "♻ Put Message Below",
+                    callback_data=join(CallbackType.RESEND_MAIN_MESSAGE, jio_str),
+                ),
+            ],
         )
 
     return InlineKeyboardMarkup(
@@ -62,7 +77,17 @@ def main_message_keyboard_markup(jio: SupperJio) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     "📢 Share this Jio!", switch_inline_query=f"order{jio_str}"
-                )
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Add Order",
+                    url=create_deep_linked_url(bot.bot.username, f"order{jio.id}"),
+                ),
+                InlineKeyboardButton(
+                    "🔒 Close the Jio",
+                    callback_data=join(CallbackType.CLOSE_JIO, jio_str),
+                ),
             ],
             [
                 InlineKeyboardButton(
@@ -70,12 +95,35 @@ def main_message_keyboard_markup(jio: SupperJio) -> InlineKeyboardMarkup:
                     callback_data=join(CallbackType.AMEND_DESCRIPTION, jio_str),
                 ),
                 InlineKeyboardButton(
-                    "🔒 Close the Jio",
-                    callback_data=join(CallbackType.CLOSE_JIO, jio_str),
+                    "♻ Put Message Below",
+                    callback_data=join(CallbackType.RESEND_MAIN_MESSAGE, jio_str),
                 ),
             ],
         ]
     )
+
+
+async def update_main_jio_message(bot: Bot, jio: SupperJio, text: str = None):
+    text = format_jio_message(jio) if text is None else text
+    keyboard = main_message_keyboard_markup(jio, bot)
+
+    try:
+        await bot.edit_message_text(
+            text,
+            chat_id=jio.chat_id,
+            message_id=jio.message_id,
+            parse_mode=ParseMode.HTML,
+            reply_markup=keyboard,
+        )
+    except BadRequest as e:
+        logging.error(f"Unable to edit original jio message for order {jio.id}: {e}")
+
+
+#
+# SHARED MESSAGES HELPER FUNCTIONS
+#
+# ie Messages sent to group chats to jio people for supper
+#
 
 
 def shared_message_reply_markup(
@@ -93,6 +141,31 @@ def shared_message_reply_markup(
     )
 
 
+async def update_shared_jio_message(
+    bot: Bot,
+    jio: SupperJio,
+    message_id: str,
+    text: str = None,
+    reply_markup: InlineKeyboardMarkup = None,
+):
+    if text is None:
+        text = format_jio_message(jio)
+
+    if reply_markup is None:
+        reply_markup = shared_message_reply_markup(bot, jio)
+
+    try:
+        await bot.edit_message_text(
+            text,
+            inline_message_id=message_id,
+            parse_mode=ParseMode.HTML,
+            reply_markup=reply_markup,
+        )
+    except BadRequest as e:
+        # TODO: If fails, then remove the message from storage?
+        logging.error(f"Unable to edit message with message_id {message_id}: {e}")
+
+
 async def update_consolidated_orders(bot: Bot, jio_id: int) -> None:
     """
     Updates all messages that are used to consolidate supper orders,
@@ -101,35 +174,21 @@ async def update_consolidated_orders(bot: Bot, jio_id: int) -> None:
 
     jio = db.get_jio(jio_id)
     text = format_jio_message(jio)
-
-    keyboard = main_message_keyboard_markup(jio)
-
-    # Edit main jio message
-    try:
-        await bot.edit_message_text(
-            text,
-            chat_id=jio.chat_id,
-            message_id=jio.message_id,
-            parse_mode=ParseMode.HTML,
-            reply_markup=keyboard,
-        )
-    except BadRequest as e:
-        logging.error(f"Unable to edit original jio message for order {jio.id}: {e}")
+    await update_main_jio_message(bot, jio, text)
 
     # Edit shared jio messages
     messages_to_edit = db.get_msg_id(jio_id)
     reply_markup = shared_message_reply_markup(bot, jio)
 
     for message_id in messages_to_edit:
-        try:
-            await bot.edit_message_text(
-                text,
-                inline_message_id=message_id,
-                parse_mode=ParseMode.HTML,
-                reply_markup=reply_markup,
-            )
-        except BadRequest as e:
-            logging.error(f"Unable to edit message with message_id {message_id}: {e}")
+        await update_shared_jio_message(bot, jio, message_id, text, reply_markup)
+
+
+#
+# INDIVIDUAL ORDER MESSAGE HELPER FUNCTIONS
+#
+# ie Messages sent to direct messages for each user to add in their order
+#
 
 
 def format_order_message(order: Order) -> str:
@@ -162,16 +221,21 @@ def order_message_keyboard_markup(order: Order) -> InlineKeyboardMarkup | None:
                     "➕ Add Order",
                     callback_data=enums.join(CallbackType.ADD_ORDER, jio_str),
                 ),
-                InlineKeyboardButton(
-                    "🤔 Modify Order",
-                    callback_data=enums.join(CallbackType.MODIFY_ORDER, jio_str),
-                ),
+                # TODO: Consider if we really need a modify button
+                # InlineKeyboardButton(
+                #     "🤔 Modify Order",
+                #     callback_data=enums.join(CallbackType.MODIFY_ORDER, jio_str),
+                # ),
                 InlineKeyboardButton(
                     "❌ Delete Order",
                     callback_data=enums.join(CallbackType.DELETE_ORDER, jio_str),
                 ),
             ]
         )
+
+    if not order.food_list:
+        # User doesn't even have a food order. Don't let them declare payment.
+        return None
 
     if order.has_paid():
         return InlineKeyboardMarkup.from_button(
@@ -181,10 +245,6 @@ def order_message_keyboard_markup(order: Order) -> InlineKeyboardMarkup | None:
             )
         )
 
-    if not order.food_list:
-        # User doesn't even have a food order. Don't let them declare payment.
-        return None
-
     return InlineKeyboardMarkup.from_button(
         InlineKeyboardButton(
             "Declare Payment",
@@ -193,29 +253,33 @@ def order_message_keyboard_markup(order: Order) -> InlineKeyboardMarkup | None:
     )
 
 
+async def update_individual_order(bot: Bot, order: Order) -> None:
+    try:
+        text = format_order_message(order)
+        markup = order_message_keyboard_markup(order)
+
+        await bot.edit_message_text(
+            text,
+            chat_id=order.user.chat_id,
+            message_id=order.message_id,
+            parse_mode=ParseMode.HTML,
+            reply_markup=markup,
+        )
+    except BadRequest as e:
+        logging.error(
+            f"Unable to edit individual order message for user {order.user}: {e}"
+        )
+
+
 async def update_individuals_order(bot: Bot, jio_id: int) -> None:
     """
     This coroutine updates all the individual message each user uses to add their
     food orders.
     """
-    lst = db.get_list_orders_jio(jio_id)
+    lst = db.get_list_all_orders(jio_id)
 
     for order in lst:
-        try:
-            text = format_order_message(order)
-            markup = order_message_keyboard_markup(order)
-
-            await bot.edit_message_text(
-                text,
-                chat_id=order.user.chat_id,
-                message_id=order.message_id,
-                parse_mode=ParseMode.HTML,
-                reply_markup=markup,
-            )
-        except BadRequest as e:
-            logging.error(
-                f"Unable to edit individual order message for user {order.user}: {e}"
-            )
+        await update_individual_order(bot, order)
 
 
 async def update_all_jio_messages(bot: Bot, jio_id: int) -> None:

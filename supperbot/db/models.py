@@ -110,7 +110,7 @@ class Order(Base):
 
     @property
     def food_list(self) -> list[str]:
-        return self.food.split("\t")
+        return self.food.split("\t") if self.food else []
 
     def __repr__(self):
         return f"Order {self.jio_id}: ({self.user_id=}) {self.food}"

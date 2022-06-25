@@ -26,6 +26,8 @@ class CallbackType(str, Enum):
 
     VIEW_JIOS = "030"
 
+    RESEND_MAIN_MESSAGE = "040"
+
     # Modifying of Orders - starts with 1
     ADD_ORDER = "100"
     CONFIRM_ORDER = "101"
@@ -33,6 +35,8 @@ class CallbackType(str, Enum):
     MODIFY_ORDER = "110"
 
     DELETE_ORDER = "120"
+    DELETE_ORDER_CANCEL = "121"
+    DELETE_ORDER_ITEM = "122"
 
     REFRESH_ORDER = "130"
 
@@ -40,6 +44,9 @@ class CallbackType(str, Enum):
     REOPEN_JIO = "200"
 
     CREATE_ORDERING_LIST = "210"
+    BACK = "211"
+
+    PING_ALL_UNPAID = "220"
 
     # Closed jios for users - starts with 3
     DECLARE_PAYMENT = "300"

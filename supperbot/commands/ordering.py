@@ -1,21 +1,21 @@
 """Coroutines and helper functions relating to adding orders to existing jios."""
 
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
-from telegram.ext import CallbackContext, ConversationHandler
+from telegram.ext import ConversationHandler, ContextTypes
 
-from supperbot import enums
 from supperbot.db import db
-from supperbot.enums import CallbackType
+from supperbot.enums import CallbackType, parse_callback_data, join
 
 from supperbot.commands.helper import (
     update_consolidated_orders,
     format_order_message,
     order_message_keyboard_markup,
+    update_individual_order,
 )
 
 
-async def interested_user(update: Update, context: CallbackContext) -> None:
+async def interested_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Called when a user clicks "Add Order" deep link on a Supper Jio.
 
@@ -55,12 +55,12 @@ async def format_and_send_user_orders(update: Update, jio_id: int) -> None:
     db.update_order_message_id(order.jio.id, order.user_id, msg.message_id)
 
 
-async def add_order(update: Update, context: CallbackContext):
+async def add_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Callback for when a user wishes to add an order to a jio.
     """
     query = update.callback_query
-    jio_id = int(enums.parse_callback_data(query.data)[1])
+    jio_id = int(parse_callback_data(query.data)[1])
     jio = db.get_jio(jio_id)
 
     if jio.is_closed():
@@ -78,7 +78,7 @@ async def add_order(update: Update, context: CallbackContext):
     return CallbackType.CONFIRM_ORDER
 
 
-async def confirm_order(update: Update, context: CallbackContext):
+async def confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # TODO: Investigate the error that occurs here for some reason - sometimes update.message == None
     food = update.message.text
     jio_id = context.user_data["current_order"]
@@ -89,3 +89,66 @@ async def confirm_order(update: Update, context: CallbackContext):
 
     await update_consolidated_orders(context.bot, jio_id)
     return ConversationHandler.END
+
+
+async def delete_order(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Callback for when the user wishes to delete one food order
+    """
+    query = update.callback_query
+    jio_id = int(parse_callback_data(query.data)[1])
+    jio_str = str(jio_id)
+
+    # TODO: Check if jio is closed
+
+    # Obtain all user orders and display in a column
+    text = "Please select the which of your food orders to delete:"
+    order = db.get_order(jio_id, update.effective_user.id)
+
+    keyboard = InlineKeyboardMarkup.from_column(
+        [
+            InlineKeyboardButton(
+                "↩ Cancel",
+                callback_data=join(CallbackType.DELETE_ORDER_CANCEL, jio_str),
+            )
+        ]
+        # Use a list comprehension to generate the rest of the buttons
+        # TODO: Create a next page functionality? Too many buttons can cause an error
+        + [
+            InlineKeyboardButton(
+                food,
+                callback_data=join(CallbackType.DELETE_ORDER_ITEM, jio_str, str(idx)),
+            )
+            for idx, food in enumerate(order.food_list)
+        ]
+    )
+
+    await update.effective_message.edit_text(text, reply_markup=keyboard)
+    await query.answer()
+
+
+async def cancel_delete_order(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+
+    query = update.callback_query
+    jio_id = int(parse_callback_data(query.data)[1])
+    order = db.get_order(jio_id, update.effective_user.id)
+
+    await update_individual_order(context.bot, order)
+    await query.answer()
+
+
+async def delete_order_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    _, jio_str, idx = parse_callback_data(query.data)
+    order = db.get_order(int(jio_str), update.effective_user.id)
+
+    # TODO: Low priority: Check if jio is closed. Typically message should be overriden
+    #       But it's possible that someone send the message elsewhere
+
+    db.delete_food_order(order, int(idx))
+
+    await update_individual_order(context.bot, order)
+    await query.answer()
+    await update_consolidated_orders(context.bot, int(jio_str))

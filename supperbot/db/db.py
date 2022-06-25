@@ -116,6 +116,13 @@ def add_food_order(jio_id: int, user_id: int, food: str) -> Order:
     return order
 
 
+def delete_food_order(order: Order, food_idx) -> None:
+    old = order.food_list
+    old.pop(food_idx)
+    order.food = "\t".join(old)
+    _session.commit()
+
+
 def update_order_message_id(jio_id: int, user_id: int, message_id: int) -> None:
     stmt = select(Order).filter_by(jio_id=jio_id, user_id=user_id)
     order = _session.scalars(stmt).one()
@@ -124,12 +131,17 @@ def update_order_message_id(jio_id: int, user_id: int, message_id: int) -> None:
     _session.commit()
 
 
-def get_list_orders_jio(jio_id: int) -> list[Order]:
+def get_list_complete_orders(jio_id: int) -> list[Order]:
     """
     Returns a list of `Order` objects for the jio with `jio_id`, for users
     who have made at least one food order.
     """
     stmt = select(Order).filter_by(jio_id=jio_id).where(Order.food != "")
+    return _session.scalars(stmt).fetchall()
+
+
+def get_list_all_orders(jio_id: int) -> list[Order]:
+    stmt = select(Order).filter_by(jio_id=jio_id)
     return _session.scalars(stmt).fetchall()
 
 
@@ -159,7 +171,6 @@ def new_msg(jio_id: int, message_id: str) -> Message:
     return msg
 
 
-def get_msg_id(jio_id: int) -> list[int]:
-    # TODO: Add in the original message from SupperJio table as well
+def get_msg_id(jio_id: int) -> list[str]:
     stmt = select(Message.message_id).filter_by(jio_id=jio_id)
     return _session.scalars(stmt).all()

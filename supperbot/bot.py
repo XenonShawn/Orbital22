@@ -22,9 +22,17 @@ from supperbot.commands.creation import (
     inline_query,
     shared_jio,
     finished_creation,
+    resend_main_message,
 )
-from supperbot.commands.ordering import interested_user, add_order, confirm_order
-from supperbot.commands.close import close_jio, reopen_jio, create_ordering_list
+from supperbot.commands.ordering import (
+    interested_user,
+    add_order,
+    confirm_order,
+    delete_order,
+    cancel_delete_order,
+    delete_order_item,
+)
+from supperbot.commands.close import close_jio, reopen_jio, create_ordering_list, back
 from supperbot.commands.payment import declare_payment, undo_payment
 
 from config import TOKEN
@@ -68,6 +76,12 @@ create_jio_conv_handler = ConversationHandler(
 application.add_handler(create_jio_conv_handler)
 
 
+# Handler for when a user clicks on the "Add Order" button on a jio
+application.add_handler(
+    CommandHandler("start", interested_user, filters.Regex(r"order\d"))
+)
+
+
 # Handler for adding of orders to a jio
 add_order_conv_handler = ConversationHandler(
     entry_points=[CallbackQueryHandler(add_order, pattern=CallbackType.ADD_ORDER)],
@@ -79,12 +93,21 @@ add_order_conv_handler = ConversationHandler(
     fallbacks=[],
 )
 application.add_handler(add_order_conv_handler)
-
-
-# Handler for when a user clicks on the "Add Order" button on a jio
 application.add_handler(
-    CommandHandler("start", interested_user, filters.Regex(r"order\d"))
+    CallbackQueryHandler(resend_main_message, pattern=CallbackType.RESEND_MAIN_MESSAGE)
 )
+
+# Deleting orders handlers
+application.add_handler(
+    CallbackQueryHandler(delete_order, pattern=CallbackType.DELETE_ORDER)
+)
+application.add_handler(
+    CallbackQueryHandler(cancel_delete_order, pattern=CallbackType.DELETE_ORDER_CANCEL)
+)
+application.add_handler(
+    CallbackQueryHandler(delete_order_item, pattern=CallbackType.DELETE_ORDER_ITEM)
+)
+
 
 # Close and reopen jio handler
 application.add_handler(CallbackQueryHandler(close_jio, pattern=CallbackType.CLOSE_JIO))
@@ -98,6 +121,7 @@ application.add_handler(
         create_ordering_list, pattern=CallbackType.CREATE_ORDERING_LIST
     )
 )
+application.add_handler(CallbackQueryHandler(back, pattern=CallbackType.BACK))
 
 # Payment handlers
 application.add_handler(
@@ -120,10 +144,9 @@ application.add_handler(ChosenInlineResultHandler(shared_jio, pattern="order"))
 unimplemented_callbacks = "|".join(
     (
         CallbackType.MODIFY_ORDER,
-        CallbackType.DELETE_ORDER,
         CallbackType.AMEND_DESCRIPTION,
         CallbackType.VIEW_JIOS,
-        CallbackType.DECLARE_PAYMENT,
+        CallbackType.PING_ALL_UNPAID,
     )
 )
 application.add_handler(
