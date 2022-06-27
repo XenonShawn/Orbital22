@@ -68,9 +68,8 @@ Technical proof of concept: https://drive.google.com/file/d/1WwHLL6n0Hp4cOG9htfq
    * Users can indicate that they have paid
 * Quality of Life features implemented
   * "Put Message Below" button - sends the order message to the bottom of the chat
-  * Edit description of the jio
-
-
+  
+    
 Features to be by the end of Milestone 3:
 
 * Core features
@@ -83,6 +82,7 @@ Features to be by the end of Milestone 3:
   * Food order suggestions derived from past usage
   * Favourite orders 
   * Allow search for previous orders/supper jio
+  * Edit description of the jio
 
 * Structural, backend and miscellaneous changes
   * Hosted on Heroku
