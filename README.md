@@ -1,4 +1,4 @@
-# README: NUS Orbital 2022 - Milestone 1
+# README: NUS Orbital 2022 - Milestone 2
 
 ## Team Name
 
@@ -68,6 +68,8 @@ Technical proof of concept: https://drive.google.com/file/d/1WwHLL6n0Hp4cOG9htfq
    * Users can indicate that they have paid
 * Quality of Life features implemented
   * "Put Message Below" button - sends the order message to the bottom of the chat
+  
+You can test the bot here: https://t.me/supperfarfetch_bot 
   
     
 Features to be by the end of Milestone 3:
