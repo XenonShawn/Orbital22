@@ -1,149 +1,154 @@
 """Coroutines and helper functions relating to adding orders to existing jios."""
 
-import logging
-
-import telegram.error
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
-from telegram.ext import CallbackContext, ConversationHandler
-from telegram.helpers import create_deep_linked_url
+from telegram.ext import ConversationHandler, ContextTypes
 
-from supperbot import db, enums
-from supperbot.enums import CallbackType
+from supperbot.db import db
+from supperbot.enums import CallbackType, parse_callback_data, join
 
-from supperbot.commands.creation import format_order_message
+from supperbot.commands.helper import (
+    update_consolidated_orders,
+    format_order_message,
+    order_message_keyboard_markup,
+    update_individual_order,
+)
 
 
-async def interested_user(update: Update, context: CallbackContext) -> None:
+async def interested_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Called when a user clicks "Add Order" deep link on a Supper Jio.
 
-    TODO: Add in more details
+    This callback does a number of steps
+    - Update the display name and chat id of the user so that their names will be
+      displayed properly in consolidated order messages
+    - Create a row in the `Order` database so they can add in their orders
+    - Send a message to the user so that they can add in their orders
     """
     # TODO: Refactor out the getting of order id.
-    order_id = int(context.args[0][5:])
+    jio_id = int(context.args[0][5:])
 
-    await format_and_send_user_orders(update, order_id)
+    # Update user display name and chat id
+    db.upsert_user(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_chat.id,
+    )
+
+    # Create an `Order` row for the user
+    db.create_order(jio_id=jio_id, user_id=update.effective_user.id)
+
+    await format_and_send_user_orders(update, jio_id)
 
 
-async def format_and_send_user_orders(update: Update, order_id: int) -> None:
+async def format_and_send_user_orders(update: Update, jio_id: int) -> None:
     # TODO: check if order even exists
-    restaurant, description = db.get_jio(order_id)
-    restaurant = enums.restaurant_name[restaurant]
+    # TODO: check if order is already closed
+    order = db.get_order(jio_id, update.effective_user.id)
 
-    message = (
-        f"Supper Jio Order #{order_id}: <b>{restaurant}</b>\n"
-        f"Additional Information: \n{description}\n\n"
-        "Your Orders:\n"
-    )
+    message = format_order_message(order)
+    keyboard = order_message_keyboard_markup(order)
 
-    food_list = db.get_user_orders(order_id, update.effective_user.id)
-    message += "\n".join(food_list) if food_list else "None"
-
-    order_id_str = str(order_id)
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "➕ Add Order",
-                    callback_data=enums.join(CallbackType.ADD_ORDER, order_id_str),
-                ),
-                InlineKeyboardButton(
-                    "🤔 Modify Order",
-                    callback_data=enums.join(CallbackType.MODIFY_ORDER, order_id_str),
-                ),
-                InlineKeyboardButton(
-                    "❌ Delete Order",
-                    callback_data=enums.join(CallbackType.DELETE_ORDER, order_id_str),
-                ),
-            ]
-        ]
-    )
-
-    await update.effective_chat.send_message(
+    msg = await update.effective_chat.send_message(
         text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
     )
+    db.update_order_message_id(order.jio.id, order.user_id, msg.message_id)
 
 
-async def add_order(update: Update, context: CallbackContext):
+async def add_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Callback for when a user wishes to add an order to a jio.
+    """
     query = update.callback_query
+    jio_id = int(parse_callback_data(query.data)[1])
+    jio = db.get_jio(jio_id)
 
-    # Update user display name
-    db.upsert_user(update.effective_user.id, update.effective_user.first_name)
-
-    order_id = int(enums.parse_callback_data(query.data)[1])
+    if jio.is_closed():
+        await query.answer("The jio is closed!")
+        return
 
     # TODO: Maybe allow adding multiple orders at once using line breaks?
-    message = f"Adding order for Order #{order_id}\n\nPlease type out your order."
+    message = f"Adding order for Order #{jio_id}\n\nPlease type out your order."
 
-    context.user_data[
-        "current_order"
-    ] = order_id  # Keep track of current order for the reply
+    # Keep track of current order for the reply
+    context.user_data["current_order"] = jio_id
 
     await update.effective_message.edit_text(text=message, reply_markup=None)
     await query.answer()
     return CallbackType.CONFIRM_ORDER
 
 
-async def confirm_order(update: Update, context: CallbackContext):
+async def confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # TODO: Investigate the error that occurs here for some reason - sometimes update.message == None
     food = update.message.text
-    order_id = context.user_data["current_order"]
-    db.add_order(order_id, update.effective_user.id, food)
+    jio_id = context.user_data["current_order"]
+    db.add_food_order(jio_id, update.effective_user.id, food)
     del context.user_data["current_order"]
 
-    await format_and_send_user_orders(update, order_id)
+    await format_and_send_user_orders(update, jio_id)
 
-    await update_orders(context.bot, order_id)
+    await update_consolidated_orders(context.bot, jio_id)
     return ConversationHandler.END
 
 
-async def update_orders(bot: telegram.Bot, order_id: int) -> None:
-    """Updates all messages for the order with order id `order_id`."""
+async def delete_order(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Callback for when the user wishes to delete one food order
+    """
+    query = update.callback_query
+    jio_id = int(parse_callback_data(query.data)[1])
+    jio_str = str(jio_id)
 
-    text = format_order_message(order_id)
-    messages_to_edit = db.get_msg(order_id)
-    deep_link = create_deep_linked_url(bot.bot.username, f"order{order_id}")
+    # TODO: Check if jio is closed
 
-    # Edit main jio message
-    original_chat_id, original_msg_id = db.get_jio_main_message(order_id)
-    keyboard = InlineKeyboardMarkup(
+    # Obtain all user orders and display in a column
+    text = "Please select the which of your food orders to delete:"
+    order = db.get_order(jio_id, update.effective_user.id)
+
+    keyboard = InlineKeyboardMarkup.from_column(
         [
-            [
-                InlineKeyboardButton(
-                    "📢 Share this Jio!", switch_inline_query=f"order{order_id}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🗒️ Edit Description", callback_data=CallbackType.AMEND_DESCRIPTION
-                ),
-                InlineKeyboardButton(
-                    "🔒 Close the Jio", callback_data=CallbackType.CLOSE_JIO
-                ),
-            ],
+            InlineKeyboardButton(
+                "↩ Cancel",
+                callback_data=join(CallbackType.DELETE_ORDER_CANCEL, jio_str),
+            )
+        ]
+        # Use a list comprehension to generate the rest of the buttons
+        # TODO: Create a next page functionality? Too many buttons can cause an error
+        + [
+            InlineKeyboardButton(
+                food,
+                callback_data=join(CallbackType.DELETE_ORDER_ITEM, jio_str, str(idx)),
+            )
+            for idx, food in enumerate(order.food_list)
         ]
     )
-    try:
-        await bot.edit_message_text(
-            text,
-            chat_id=original_chat_id,
-            message_id=original_msg_id,
-            parse_mode=ParseMode.HTML,
-            reply_markup=keyboard,
-        )
-    except telegram.error.BadRequest:
-        logging.error(f"Unable to edit original jio message for order {order_id}")
 
-    # Edit shared jio messages
-    for message_id in messages_to_edit:
-        try:
-            await bot.edit_message_text(
-                text,
-                inline_message_id=message_id,
-                parse_mode=ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup.from_button(
-                    InlineKeyboardButton(text="Add Order", url=deep_link)
-                ),
-            )
-        except telegram.error.BadRequest:
-            logging.error(f"Unable to edit message with message_id {message_id}")
+    await update.effective_message.edit_text(text, reply_markup=keyboard)
+    await query.answer()
+
+
+async def cancel_delete_order(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+
+    query = update.callback_query
+    jio_id = int(parse_callback_data(query.data)[1])
+    order = db.get_order(jio_id, update.effective_user.id)
+
+    await update_individual_order(context.bot, order)
+    await query.answer()
+
+
+async def delete_order_item(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    _, jio_str, idx = parse_callback_data(query.data)
+    order = db.get_order(int(jio_str), update.effective_user.id)
+
+    # TODO: Low priority: Check if jio is closed. Typically message should be overriden
+    #       But it's possible that someone send the message elsewhere
+
+    db.delete_food_order(order, int(idx))
+
+    await update_individual_order(context.bot, order)
+    await query.answer()
+    await update_consolidated_orders(context.bot, int(jio_str))

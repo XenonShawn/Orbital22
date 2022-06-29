@@ -136,3 +136,4 @@ config.py
 
 # Temp Database
 *.db
+scrap.py
