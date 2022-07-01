@@ -1,3 +1,9 @@
+from sys import version_info
+
+if version_info < (3, 9):
+    # Required for type hints before Python 3.9
+    from __future__ import annotations
+
 from enum import unique, Enum
 
 
