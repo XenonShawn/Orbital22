@@ -31,7 +31,8 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Callback
     context.user_data["create"] = True
     message = (
         "You are creating a new supper jio order."
-        "Please select the restaurant you are ordering from, or type out the name of the restaurant.\n\n"
+        "Please select the restaurant you are ordering from, "
+        "or type out the name of the restaurant.\n\n"
         "The name of the restaurant should not exceed 32 characters."
     )
 
@@ -40,7 +41,8 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Callback
 
     await update.effective_chat.send_message(message, reply_markup=reply_markup)
 
-    # Callback queries need to be answered, even if no notification to the user is needed.
+    # Callback queries need to be answered,
+    # even if no notification to the user is needed.
     await update.callback_query.answer()
 
     return CallbackType.ADDITIONAL_DETAILS
@@ -97,6 +99,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     logging.debug("Received an inline query: " + query)
 
     if query == "" or not query.startswith("order"):
+        await update.inline_query.answer([])
         return
 
     # TODO: Abstract out this part

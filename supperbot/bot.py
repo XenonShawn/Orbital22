@@ -83,14 +83,17 @@ application.add_handler(
 
 
 # Handler for adding of orders to a jio
+add_order_handler = CallbackQueryHandler(add_order, pattern=CallbackType.ADD_ORDER)
 add_order_conv_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(add_order, pattern=CallbackType.ADD_ORDER)],
+    entry_points=[add_order_handler],
     states={
         CallbackType.CONFIRM_ORDER: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, confirm_order)
         ]
     },
-    fallbacks=[],
+    # Allow users to press "add order" again - otherwise it'll show them
+    # "not implemented" and I'm not sure why it's happening
+    fallbacks=[add_order_handler],
 )
 application.add_handler(add_order_conv_handler)
 application.add_handler(
