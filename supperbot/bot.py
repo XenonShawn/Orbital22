@@ -50,6 +50,7 @@ async def unrecognized_callback(update: Update, _) -> None:
 
 async def set_commands(context: CallbackContext) -> None:
     await context.bot.set_my_commands([("/start", "Start the bot")])
+    logging.info(f"Started as {context.bot.name}")
 
 
 application = ApplicationBuilder().concurrent_updates(False).token(TOKEN).build()

@@ -15,6 +15,8 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.helpers import create_deep_linked_url
 
+from sqlalchemy.exc import NoResultFound
+
 from supperbot.db import db
 from supperbot.enums import CallbackType, parse_callback_data
 from supperbot.commands.helper import format_jio_message, main_message_keyboard_markup
@@ -103,30 +105,66 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     # TODO: Abstract out this part
-    order_id = int(query[5:])
+    order_id_str = query[5:]
 
-    # TODO: Check for if function returns `None`
-    jio = db.get_jio(order_id)
-    deep_link = create_deep_linked_url(context.bot.username, f"order{order_id}")
+    if order_id_str:
+        # An order id is provided
 
-    message = format_jio_message(jio)
+        order_id = int(query[5:])
 
-    # TODO: Improve on the quality of the search.
+        # Check if the order id is valid
+        try:
+            jio = db.get_jio(order_id)
+        except NoResultFound:
+            jio = None
+
+        if jio is None or jio.owner_id != update.effective_user.id:
+            await update.inline_query.answer([])
+            return
+
+        # User owns the supper jio
+        deep_link = create_deep_linked_url(context.bot.username, f"order{order_id}")
+
+        results = [
+            InlineQueryResultArticle(
+                id=f"order{jio.id}",
+                title=f"Order {jio.id}",
+                description=f"Jio for {jio.restaurant}",
+                input_message_content=InputTextMessageContent(
+                    format_jio_message(jio), parse_mode=ParseMode.HTML
+                ),
+                reply_markup=InlineKeyboardMarkup.from_button(
+                    InlineKeyboardButton(text="➕ Add Order", url=deep_link)
+                ),
+            )
+        ]
+
+        await update.inline_query.answer(results)
+        return
+
+    # An order id is not provided
+    jios = db.get_user_jios(update.effective_user.id)
+
     results = [
         InlineQueryResultArticle(
             id=f"order{jio.id}",
             title=f"Order {jio.id}",
             description=f"Jio for {jio.restaurant}",
             input_message_content=InputTextMessageContent(
-                message, parse_mode=ParseMode.HTML
+                format_jio_message(jio), parse_mode=ParseMode.HTML
             ),
             reply_markup=InlineKeyboardMarkup.from_button(
-                InlineKeyboardButton(text="➕ Add Order", url=deep_link)
+                InlineKeyboardButton(
+                    text="➕ Add Order",
+                    url=create_deep_linked_url(context.bot.username, f"order{jio.id}"),
+                )
             ),
         )
+        for jio in jios
     ]
 
     await update.inline_query.answer(results)
+    return
 
 
 async def shared_jio(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:

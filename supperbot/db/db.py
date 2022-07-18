@@ -52,6 +52,30 @@ def delete_jio(jio: SupperJio):
     raise NotImplementedError
 
 
+def get_user_jios(
+    owner_id: int,
+    *,
+    limit: int | None = 10,
+    allow_closed: bool = False,
+    desc: bool = True,
+) -> list[SupperJio]:
+    stmt = select(SupperJio).filter_by(owner_id=owner_id)
+
+    if allow_closed:
+        stmt = stmt.where(SupperJio.status == Stage.CLOSED)
+    else:
+        stmt = stmt.where(SupperJio.status != Stage.CLOSED)
+
+    if desc:
+        stmt = stmt.order_by(SupperJio.timestamp.desc())
+    else:
+        stmt = stmt.order_by(SupperJio.timestamp)
+
+    if limit is None:
+        return _session.scalars(stmt).fetchall()
+    return _session.scalars(stmt).fetchmany(size=limit)
+
+
 #
 # Users
 #
