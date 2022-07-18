@@ -31,7 +31,7 @@ async def start(update: Update, _) -> None:
         ],
         [
             InlineKeyboardButton(
-                "📖 View Ongoing Jios", callback_data=CallbackType.VIEW_CREATED_JIOS
+                "📖 View Your Jios", callback_data=CallbackType.VIEW_CREATED_JIOS
             )
         ],
     ]
@@ -78,7 +78,7 @@ async def view_created_jios(update: Update, _) -> None:
         ]
     )
 
-    await update.effective_message.edit_text(text, reply_markup=keyboard)
+    await update.effective_chat.send_message(text, reply_markup=keyboard)
     await query.answer()
 
 
@@ -88,6 +88,6 @@ async def cancel_view(update: Update, _) -> None:
     try:
         await update.effective_message.edit_reply_markup(None)
     except BadRequest as e:
-        logging.error(f"Unable to cancel view past messages.")
+        logging.error(f"Unable to cancel view past messages: {e}")
 
     await start(update, _)

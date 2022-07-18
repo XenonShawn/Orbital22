@@ -39,7 +39,7 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Callback
     )
 
     # TODO: Abstract out the following to a separate method call
-    reply_markup = ReplyKeyboardMarkup([["McDonalds", "Al Amaan"]])
+    reply_markup = ReplyKeyboardMarkup([["McDonalds", "Al Amaan"], ["↩ Cancel"]])
 
     await update.effective_chat.send_message(message, reply_markup=reply_markup)
 
@@ -54,6 +54,12 @@ async def additional_details(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Collection of additional details and description for the supper jio."""
 
     text = update.message.text
+
+    if text == "↩ Cancel":
+        await update.message.reply_text(
+            "Supper Jio creation cancelled.", reply_markup=ReplyKeyboardRemove()
+        )
+        return ConversationHandler.END
 
     if len(text) > 32:
         await update.message.reply_text(

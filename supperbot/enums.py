@@ -31,6 +31,8 @@ class CallbackType(str, Enum):
 
     RESEND_MAIN_MESSAGE = "040"
 
+    OWNER_ADD_ORDER = "050"
+
     # Modifying of Orders - starts with 1
     ADD_ORDER = "100"
     CONFIRM_ORDER = "101"

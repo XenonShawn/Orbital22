@@ -32,6 +32,7 @@ from supperbot.commands.creation import (
 )
 from supperbot.commands.ordering import (
     interested_user,
+    interested_owner,
     add_order,
     confirm_order,
     delete_order,
@@ -91,6 +92,9 @@ application.add_handler(create_jio_conv_handler)
 # Handler for when a user clicks on the "Add Order" button on a jio
 application.add_handler(
     CommandHandler("start", interested_user, filters.Regex(r"order\d"))
+)
+application.add_handler(
+    CallbackQueryHandler(interested_owner, pattern=CallbackType.OWNER_ADD_ORDER)
 )
 
 

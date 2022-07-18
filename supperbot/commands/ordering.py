@@ -41,6 +41,28 @@ async def interested_user(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await format_and_send_user_orders(update, jio_id)
 
 
+async def interested_owner(update: Update, _) -> None:
+    """
+    Same functionality as the `interested_user` coroutine, except this is for when
+    the owner of a jio wants to add in their own orders.
+    """
+    query = update.callback_query
+    jio_id = int(parse_callback_data(query.data)[1])
+
+    # Update user display name and chat id
+    db.upsert_user(
+        update.effective_user.id,
+        update.effective_user.first_name,
+        update.effective_chat.id,
+    )
+
+    # Create an `Order` row for the user
+    db.create_order(jio_id=jio_id, user_id=update.effective_user.id)
+
+    await format_and_send_user_orders(update, jio_id)
+    await query.answer()
+
+
 async def format_and_send_user_orders(update: Update, jio_id: int) -> None:
     # TODO: check if order even exists
     # TODO: check if order is already closed

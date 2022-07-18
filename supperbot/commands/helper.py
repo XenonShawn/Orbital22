@@ -82,9 +82,13 @@ def main_message_keyboard_markup(jio: SupperJio, bot: Bot) -> InlineKeyboardMark
                 ),
             ],
             [
+                # InlineKeyboardButton(
+                #     text="Add Order",
+                #     url=create_deep_linked_url(bot.bot.username, f"order{jio.id}"),
+                # ),
                 InlineKeyboardButton(
-                    text="Add Order",
-                    url=create_deep_linked_url(bot.bot.username, f"order{jio.id}"),
+                    "Add Order",
+                    callback_data=join(CallbackType.OWNER_ADD_ORDER, jio_str),
                 ),
                 InlineKeyboardButton(
                     "🔒 Close the Jio",
