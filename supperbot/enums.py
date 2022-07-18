@@ -26,7 +26,8 @@ class CallbackType(str, Enum):
 
     CLOSE_JIO = "020"
 
-    VIEW_JIOS = "030"
+    VIEW_CREATED_JIOS = "030"
+    CANCEL_VIEW = "031"
 
     RESEND_MAIN_MESSAGE = "040"
 

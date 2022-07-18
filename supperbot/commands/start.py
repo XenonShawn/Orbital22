@@ -1,7 +1,12 @@
 """File containing the start and help commands for the bot"""
+import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from supperbot.enums import CallbackType
+from telegram.constants import InlineKeyboardMarkupLimit
+from telegram.error import BadRequest
+
+from supperbot.db import db
+from supperbot.enums import CallbackType, join
 
 
 async def help_command(update: Update, _) -> None:
@@ -26,9 +31,63 @@ async def start(update: Update, _) -> None:
         ],
         [
             InlineKeyboardButton(
-                "📖 View Ongoing Jios", callback_data=CallbackType.VIEW_JIOS
+                "📖 View Ongoing Jios", callback_data=CallbackType.VIEW_CREATED_JIOS
             )
         ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.effective_chat.send_message(text=message, reply_markup=reply_markup)
+
+
+async def view_created_jios(update: Update, _) -> None:
+    """
+    Allow the user to view the jios that they have created
+    """
+
+    query = update.callback_query
+
+    # TODO: Create a next page functionality for the buttons so that more can be viewed
+    # Telegram has a limitation on how many buttons there can be. Currently, it's 100.
+    # However, 100 buttons is still too many. Right now the limit is 50.
+    jios = db.get_user_jios(
+        update.effective_user.id,
+        limit=min(50, InlineKeyboardMarkupLimit.TOTAL_BUTTON_NUMBER - 1),
+        allow_closed=True,
+    )
+
+    if not jios:
+        # User has not created any jios
+        await update.effective_chat.send_message(text="You have not created any jios.")
+        await query.answer()
+        return
+
+    text = (
+        "Which of your jios do you want to view?\n"
+        "Only the most recent 50 jios can be viewed."
+    )
+
+    keyboard = InlineKeyboardMarkup.from_column(
+        [InlineKeyboardButton("↩ Cancel", callback_data=CallbackType.CANCEL_VIEW)]
+        # Use a list comprehension to generate the rest of the buttons
+        + [
+            InlineKeyboardButton(
+                str(jio),
+                callback_data=join(CallbackType.RESEND_MAIN_MESSAGE, str(jio.id)),
+            )
+            for jio in jios
+        ]
+    )
+
+    await update.effective_message.edit_text(text, reply_markup=keyboard)
+    await query.answer()
+
+
+async def cancel_view(update: Update, _) -> None:
+
+    # Try removing the message
+    try:
+        await update.effective_message.edit_reply_markup(None)
+    except BadRequest as e:
+        logging.error(f"Unable to cancel view past messages.")
+
+    await start(update, _)

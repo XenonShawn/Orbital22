@@ -61,9 +61,7 @@ def get_user_jios(
 ) -> list[SupperJio]:
     stmt = select(SupperJio).filter_by(owner_id=owner_id)
 
-    if allow_closed:
-        stmt = stmt.where(SupperJio.status == Stage.CLOSED)
-    else:
+    if not allow_closed:
         stmt = stmt.where(SupperJio.status != Stage.CLOSED)
 
     if desc:

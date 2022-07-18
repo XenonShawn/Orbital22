@@ -73,7 +73,8 @@ class SupperJio(Base):
         return self.status != Stage.CREATED
 
     def __repr__(self):
-        return f"Order {self.id}: {self.restaurant}"
+        closed = "Closed, " if self.status == Stage.CLOSED else ""
+        return f"Order {self.id}: {self.restaurant} ({closed + self.timestamp[:10]})"
 
 
 class Message(Base):

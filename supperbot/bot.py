@@ -15,7 +15,13 @@ from telegram.ext import (
 
 from supperbot import enums
 from supperbot.enums import CallbackType
-from supperbot.commands.start import start_group, start, help_command
+from supperbot.commands.start import (
+    start_group,
+    start,
+    help_command,
+    view_created_jios,
+    cancel_view,
+)
 from supperbot.commands.creation import (
     create,
     additional_details,
@@ -56,14 +62,19 @@ async def set_commands(context: CallbackContext) -> None:
 application = ApplicationBuilder().concurrent_updates(False).token(TOKEN).build()
 application.job_queue.run_once(set_commands, 0)
 
+# View previously created jios
+application.add_handler(
+    CallbackQueryHandler(view_created_jios, pattern=CallbackType.VIEW_CREATED_JIOS)
+)
+
+application.add_handler(
+    CallbackQueryHandler(cancel_view, pattern=CallbackType.CANCEL_VIEW)
+)
 
 # Handler for the creation of a supper jio
+create_jio_handler = CallbackQueryHandler(create, pattern=CallbackType.CREATE_JIO)
 create_jio_conv_handler = ConversationHandler(
-    entry_points=[
-        CallbackQueryHandler(
-            create, pattern=enums.regex_pattern(CallbackType.CREATE_JIO)
-        )
-    ],
+    entry_points=[create_jio_handler],
     states={
         CallbackType.ADDITIONAL_DETAILS: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, additional_details)
@@ -72,7 +83,7 @@ create_jio_conv_handler = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, finished_creation)
         ],
     },
-    fallbacks=[],
+    fallbacks=[create_jio_handler],
 )
 application.add_handler(create_jio_conv_handler)
 
@@ -147,9 +158,7 @@ application.add_handler(ChosenInlineResultHandler(shared_jio, pattern="order"))
 # Not yet implemented callbacks
 unimplemented_callbacks = "|".join(
     (
-        CallbackType.MODIFY_ORDER,
         CallbackType.AMEND_DESCRIPTION,
-        CallbackType.VIEW_JIOS,
         CallbackType.PING_ALL_UNPAID,
     )
 )
