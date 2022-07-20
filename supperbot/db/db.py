@@ -74,6 +74,19 @@ def get_user_jios(
     return _session.scalars(stmt).fetchmany(size=limit)
 
 
+def get_joined_jios(user_id: int, *, limit: int | None = 10) -> list[SupperJio]:
+    stmt = (
+        select(SupperJio)
+        .join(Order)
+        .filter_by(user_id=user_id)
+        .order_by(SupperJio.timestamp.desc())
+    )
+
+    if limit is None:
+        return _session.scalars(stmt).fetchall()
+    return _session.scalars(stmt).fetchmany(size=limit)
+
+
 def edit_jio_description(jio: SupperJio, description: str) -> None:
     jio.description = description
     _session.commit()

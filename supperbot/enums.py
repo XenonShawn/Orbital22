@@ -30,6 +30,7 @@ class CallbackType(str, Enum):
 
     VIEW_CREATED_JIOS = "030"
     CANCEL_VIEW = "031"
+    VIEW_JOINED_JIOS = "035"
 
     RESEND_MAIN_MESSAGE = "040"
 

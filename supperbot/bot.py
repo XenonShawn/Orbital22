@@ -20,6 +20,7 @@ from supperbot.commands.start import (
     help_command,
     view_created_jios,
     cancel_view,
+    view_joined_jios,
 )
 from supperbot.commands.creation import (
     create,
@@ -74,6 +75,10 @@ application.job_queue.run_once(set_commands, 0)
 # View previously created jios
 application.add_handler(
     CallbackQueryHandler(view_created_jios, pattern=CallbackType.VIEW_CREATED_JIOS)
+)
+
+application.add_handler(
+    CallbackQueryHandler(view_joined_jios, pattern=CallbackType.VIEW_JOINED_JIOS)
 )
 
 application.add_handler(
