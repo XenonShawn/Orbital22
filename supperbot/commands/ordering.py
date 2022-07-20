@@ -1,6 +1,6 @@
 """Coroutines and helper functions relating to adding orders to existing jios."""
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.constants import ParseMode
 from telegram.ext import ConversationHandler, ContextTypes
 
@@ -38,10 +38,12 @@ async def interested_user(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     # Create an `Order` row for the user
     db.create_order(jio_id=jio_id, user_id=update.effective_user.id)
 
-    await format_and_send_user_orders(update, jio_id)
+    await format_and_send_user_orders(
+        update.effective_user.id, update.effective_chat.id, jio_id, context.bot
+    )
 
 
-async def interested_owner(update: Update, _) -> None:
+async def interested_owner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Same functionality as the `interested_user` coroutine, except this is for when
     the owner of a jio wants to add in their own orders.
@@ -59,20 +61,23 @@ async def interested_owner(update: Update, _) -> None:
     # Create an `Order` row for the user
     db.create_order(jio_id=jio_id, user_id=update.effective_user.id)
 
-    await format_and_send_user_orders(update, jio_id)
+    await format_and_send_user_orders(
+        update.effective_user.id, update.effective_chat.id, jio_id, context.bot
+    )
     await query.answer()
 
 
-async def format_and_send_user_orders(update: Update, jio_id: int) -> None:
+async def format_and_send_user_orders(
+    user_id: int, chat_id: int, jio_id: int, bot: Bot
+):
     # TODO: check if order even exists
-    # TODO: check if order is already closed
-    order = db.get_order(jio_id, update.effective_user.id)
+    order = db.get_order(jio_id, user_id)
 
     message = format_order_message(order)
     keyboard = order_message_keyboard_markup(order)
 
-    msg = await update.effective_chat.send_message(
-        text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
+    msg = await bot.send_message(
+        chat_id=chat_id, text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
     )
     db.update_order_message_id(order.jio.id, order.user_id, msg.message_id)
 
@@ -107,7 +112,9 @@ async def confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.add_food_order(jio_id, update.effective_user.id, food)
     del context.user_data["current_order"]
 
-    await format_and_send_user_orders(update, jio_id)
+    await format_and_send_user_orders(
+        update.effective_user.id, update.effective_chat.id, jio_id, context.bot
+    )
 
     await update_consolidated_orders(context.bot, jio_id)
     return ConversationHandler.END

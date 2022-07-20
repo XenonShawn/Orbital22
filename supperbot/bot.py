@@ -13,7 +13,6 @@ from telegram.ext import (
     filters,
 )
 
-from supperbot import enums
 from supperbot.enums import CallbackType
 from supperbot.commands.start import (
     start_group,
@@ -39,7 +38,13 @@ from supperbot.commands.ordering import (
     cancel_delete_order,
     delete_order_item,
 )
-from supperbot.commands.close import close_jio, reopen_jio, create_ordering_list, back
+from supperbot.commands.close import (
+    close_jio,
+    reopen_jio,
+    create_ordering_list,
+    back,
+    ping_unpaid_users,
+)
 from supperbot.commands.payment import declare_payment, undo_payment
 
 from config import TOKEN
@@ -148,6 +153,11 @@ application.add_handler(
 )
 application.add_handler(
     CallbackQueryHandler(undo_payment, pattern=CallbackType.UNDO_PAYMENT)
+)
+
+# Ping unpaid users
+application.add_handler(
+    CallbackQueryHandler(ping_unpaid_users, pattern=CallbackType.PING_ALL_UNPAID)
 )
 
 # /start and /help command handler

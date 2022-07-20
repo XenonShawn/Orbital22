@@ -68,7 +68,7 @@ def main_message_keyboard_markup(jio: SupperJio, bot: Bot) -> InlineKeyboardMark
                     callback_data=join(CallbackType.PING_ALL_UNPAID, jio_str),
                 ),
                 InlineKeyboardButton(
-                    "♻ Put Message Below",
+                    "♻ Refresh Message",
                     callback_data=join(CallbackType.RESEND_MAIN_MESSAGE, jio_str),
                 ),
             ],
@@ -101,7 +101,7 @@ def main_message_keyboard_markup(jio: SupperJio, bot: Bot) -> InlineKeyboardMark
                     callback_data=join(CallbackType.AMEND_DESCRIPTION, jio_str),
                 ),
                 InlineKeyboardButton(
-                    "♻ Put Message Below",
+                    "♻ Refresh Message",
                     callback_data=join(CallbackType.RESEND_MAIN_MESSAGE, jio_str),
                 ),
             ],

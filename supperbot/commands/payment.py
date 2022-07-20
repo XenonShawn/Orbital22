@@ -23,7 +23,9 @@ async def declare_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.edit_reply_markup(None)
 
     # TODO: This spams the user a lot. Consider another way when improving this
-    await format_and_send_user_orders(update, jio_id)
+    await format_and_send_user_orders(
+        update.effective_user.id, update.effective_chat.id, jio_id, context.bot
+    )
     await query.answer()
 
     await update_consolidated_orders(context.bot, jio_id)
@@ -38,7 +40,9 @@ async def undo_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.effective_message.edit_reply_markup(None)
 
-    await format_and_send_user_orders(update, jio_id)
+    await format_and_send_user_orders(
+        update.effective_user.id, update.effective_chat.id, jio_id, context.bot
+    )
     await query.answer()
 
     await update_consolidated_orders(context.bot, jio_id)
