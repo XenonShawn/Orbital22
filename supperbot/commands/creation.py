@@ -19,7 +19,11 @@ from sqlalchemy.exc import NoResultFound
 
 from supperbot.db import db
 from supperbot.enums import CallbackType, parse_callback_data
-from supperbot.commands.helper import format_jio_message, main_message_keyboard_markup
+from supperbot.commands.helper import (
+    format_jio_message,
+    main_message_keyboard_markup,
+    update_consolidated_orders,
+)
 
 
 async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> CallbackType:
@@ -174,7 +178,9 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def shared_jio(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-    """Updates the database with the new message id after a jio has been shared to a group."""
+    """
+    Updates the database with the new message id after a jio has been shared to a group.
+    """
 
     chosen_result = update.chosen_inline_result
 
@@ -191,7 +197,6 @@ async def resend_main_message(
 
     query = update.callback_query
     jio_id = int(parse_callback_data(query.data)[1])
-
     jio = db.get_jio(jio_id)
 
     # Try editing the previous main message
@@ -203,7 +208,95 @@ async def resend_main_message(
     message = format_jio_message(jio)
     keyboard = main_message_keyboard_markup(jio, context.bot)
 
+    await query.answer()
+
     msg = await update.effective_chat.send_message(
         text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
     )
     db.update_jio_message_id(jio.id, msg.chat_id, msg.message_id)
+
+
+async def amend_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    jio_id = int(parse_callback_data(query.data)[1])
+    jio = context.user_data["jio"] = db.get_jio(jio_id)
+
+    # Try removing the markup
+    try:
+        await update.effective_message.edit_reply_markup(None)
+    except BadRequest as e:
+        logging.error(
+            f"Unable to edit markup for message {update.effective_message.id}: {e}"
+        )
+
+    message = (
+        f"Editing description for <b>Order {jio.id}: {jio.restaurant}</b>.\n\n"
+        f"Current description:\n{jio.description}"
+    )
+
+    msg = await update.effective_chat.send_message(
+        text=message,
+        reply_markup=InlineKeyboardMarkup.from_button(
+            InlineKeyboardButton(
+                text="↩ Cancel",
+                callback_data=CallbackType.CANCEL_AMEND_DESCRIPTION,
+            )
+        ),
+        parse_mode=ParseMode.HTML,
+    )
+    context.user_data["amend_msg"] = msg
+
+    await query.answer()
+    return CallbackType.FINISH_AMEND_DESCRIPTION
+
+
+async def finish_amend_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    information = update.message.text
+    jio = context.user_data["jio"]
+    del context.user_data["jio"]
+
+    db.edit_jio_description(jio, information)
+
+    # TODO: Copied from `resend_main_message`. Try and refactor
+    # Try editing the previous main message
+    try:
+        await context.user_data["amend_msg"].edit_reply_markup(None)
+        del context.user_data["amend_msg"]
+    except BadRequest as e:
+        logging.error(f"Unable to edit amend message for jio {jio}: {e}")
+
+    message = format_jio_message(jio)
+    keyboard = main_message_keyboard_markup(jio, context.bot)
+
+    msg = await update.effective_chat.send_message(
+        text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
+    )
+    db.update_jio_message_id(jio.id, msg.chat_id, msg.message_id)
+
+    # TODO: `update_consolidated_orders` tries to edit the host's jio message too.
+    #       Maybe consider refactoring? Else will throw error in logs
+    await update_consolidated_orders(context.bot, jio.id)
+
+    return ConversationHandler.END
+
+
+async def cancel_amend_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    jio = context.user_data["jio"]
+    del context.user_data["jio"]
+
+    # TODO: Copied from `resend_main_message`. Try and refactor
+    # Try editing the previous main message
+    try:
+        await context.user_data["amend_msg"].edit_reply_markup(None)
+        del context.user_data["amend_msg"]
+    except BadRequest as e:
+        logging.error(f"Unable to edit amend message for jio {jio}: {e}")
+
+    message = format_jio_message(jio)
+    keyboard = main_message_keyboard_markup(jio, context.bot)
+
+    msg = await update.effective_chat.send_message(
+        text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
+    )
+    db.update_jio_message_id(jio.id, msg.chat_id, msg.message_id)
+    return ConversationHandler.END

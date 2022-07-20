@@ -23,6 +23,8 @@ class CallbackType(str, Enum):
     FINISHED_CREATION = "003"
 
     AMEND_DESCRIPTION = "010"
+    CANCEL_AMEND_DESCRIPTION = "011"
+    FINISH_AMEND_DESCRIPTION = "012"
 
     CLOSE_JIO = "020"
 

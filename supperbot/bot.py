@@ -28,6 +28,9 @@ from supperbot.commands.creation import (
     shared_jio,
     finished_creation,
     resend_main_message,
+    amend_description,
+    finish_amend_description,
+    cancel_amend_description,
 )
 from supperbot.commands.ordering import (
     interested_user,
@@ -92,6 +95,26 @@ create_jio_conv_handler = ConversationHandler(
     fallbacks=[create_jio_handler],
 )
 application.add_handler(create_jio_conv_handler)
+
+# Handler for editing the description of a supper jio
+amend_description_handler = CallbackQueryHandler(
+    amend_description, pattern=CallbackType.AMEND_DESCRIPTION
+)
+amend_description_conv_handler = ConversationHandler(
+    entry_points=[amend_description_handler],
+    states={
+        CallbackType.FINISH_AMEND_DESCRIPTION: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, finish_amend_description)
+        ]
+    },
+    fallbacks=[
+        amend_description_handler,
+        CallbackQueryHandler(
+            cancel_amend_description, pattern=CallbackType.CANCEL_AMEND_DESCRIPTION
+        ),
+    ],
+)
+application.add_handler(amend_description_conv_handler)
 
 
 # Handler for when a user clicks on the "Add Order" button on a jio

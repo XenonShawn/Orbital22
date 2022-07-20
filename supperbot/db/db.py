@@ -74,6 +74,11 @@ def get_user_jios(
     return _session.scalars(stmt).fetchmany(size=limit)
 
 
+def edit_jio_description(jio: SupperJio, description: str) -> None:
+    jio.description = description
+    _session.commit()
+
+
 #
 # Users
 #
