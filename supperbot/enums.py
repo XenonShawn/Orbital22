@@ -8,12 +8,10 @@ class CallbackType(str, Enum):
     """
     Enumerations for callbacks.
 
-    The callback system in Telegram uses a callback string. To differentiate between the different actions, the first
-    three characters of the callback data will be the action (listed below). The rest of the string will then be the
-    "arguments" required, delimited by colons (':') when necessary.
-
-    For example,
-    '001:mcdonalds' means selecting mcdonalds during the supper jio commands process.
+    The callback system in Telegram uses a callback string. To differentiate between the
+    different actions, the first three characters of the callback data will be the
+    action (listed below). The rest of the string will then be the "arguments" required,
+    delimited by colons (':') when necessary.
     """
 
     # Supper Jio Creation - Starts with 0
@@ -33,8 +31,7 @@ class CallbackType(str, Enum):
     VIEW_JOINED_JIOS = "035"
 
     RESEND_MAIN_MESSAGE = "040"
-
-    OWNER_ADD_ORDER = "050"
+    OWNER_ADD_ORDER = "041"
 
     # Modifying of Orders - starts with 1
     ADD_ORDER = "100"
@@ -43,7 +40,7 @@ class CallbackType(str, Enum):
     MODIFY_ORDER = "110"
 
     DELETE_ORDER = "120"
-    DELETE_ORDER_CANCEL = "121"
+    CANCEL_ORDER_ACTION = "121"
     DELETE_ORDER_ITEM = "122"
 
     REFRESH_ORDER = "130"
@@ -60,6 +57,15 @@ class CallbackType(str, Enum):
     DECLARE_PAYMENT = "300"
 
     UNDO_PAYMENT = "310"
+
+    # Favourite Order System - starts with 4
+    FAVOURITE_ITEM = "400"
+    CONFIRM_FAVOURITE_ITEM = "401"  # Format - 141:jio_id:restaurant:idx
+    REMOVE_FAVOURITE_ITEM = "402"  # Format - 142:jio_id:favourite_item_idx
+
+    MAIN_MENU_FAVOURITES = "410"
+
+    NOP = "999"
 
 
 def regex_pattern(callback_data: str) -> str:

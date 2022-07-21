@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, update, and_
+from sqlalchemy import select, update, and_, delete
 
 from supperbot.db.models import (
     Stage,
@@ -10,6 +10,7 @@ from supperbot.db.models import (
     User,
     Message,
     Session,
+    FavouriteOrder,
 )
 
 
@@ -196,6 +197,60 @@ def update_order_payment(jio_id: int, user_id: int, status: PaidStatus):
         .where(and_(Order.jio_id == jio_id, Order.user_id == user_id))
         .values(paid=status)
     )
+    _session.commit()
+
+
+#
+# Favourite Orders
+#
+
+
+def get_favourite_orders(user_id: int, restaurant: str) -> set[str]:
+    """
+    Returns the user's favourite orders for the restaurant.
+    """
+    stmt = select(FavouriteOrder.food).filter_by(user_id=user_id, restaurant=restaurant)
+    return set(_session.scalars(stmt).fetchall())
+
+
+def get_fav_id(user_id: int, restaurant: str, food: str) -> int:
+    stmt = select(FavouriteOrder.id).filter_by(
+        user_id=user_id, restaurant=restaurant, food=food
+    )
+    return _session.scalars(stmt).one()
+
+
+def add_favourite_order(user_id: int, restaurant: str, food: str) -> bool:
+    """
+    Adds the user's favourite orders for a specified restaurant.
+    Each user can only have up to 20 favourite orders per restaurant.
+
+    :param user_id: The user's id.
+    :param restaurant: The restaurant's name.
+    :param food: The name of the favourite food.
+    :return: A boolean indicating whether the upsert was successful.
+    """
+    favourite = get_favourite_orders(user_id, restaurant)
+    if len(favourite) >= 20:
+        return False
+
+    if food not in favourite:
+        _session.add(FavouriteOrder(user_id=user_id, restaurant=restaurant, food=food))
+        _session.commit()
+
+    return True
+
+
+def remove_favourite_order(fav_id: int, user_id: int) -> None:
+    """
+    Removes one favourite order from a user for a restaurant.
+    User id is provided as a sanity check
+
+    :param fav_id: The id of the favourite food
+    :param user_id: The id of the user
+    """
+    stmt = delete(FavouriteOrder).filter_by(id=fav_id, user_id=user_id)
+    _session.execute(stmt)
     _session.commit()
 
 

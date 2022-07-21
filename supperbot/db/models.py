@@ -119,5 +119,24 @@ class Order(Base):
         return f"Order {self.jio_id}: ({self.user_id=}) {self.food}"
 
 
+class FavouriteOrder(Base):
+    """Stores the favourite orders of each user for each restaurant"""
+
+    __tablename__ = "favourite_orders"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"))
+    restaurant = Column(String(32))
+    food = Column(String)
+
+    user = relationship("User", backref="favourite_orders")
+
+    def __repr__(self):
+        return (
+            f"FavouriteOrder"
+            f"({self.id=}, {self.user_id=}, {self.restaurant=}, {self.food=}"
+        )
+
+
 Base.metadata.create_all(engine)
 Session = sessionmaker(engine)

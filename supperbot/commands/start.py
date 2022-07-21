@@ -108,6 +108,7 @@ async def view_joined_jios(update: Update, _) -> None:
     # TODO: Create a next page functionality for the buttons so that more can be viewed
     # Telegram has a limitation on how many buttons there can be. Currently, it's 100.
     # However, 100 buttons is still too many. Right now the limit is 50.
+    # TODO: Maybe consider only showing orders that the user has ordered something?
     jios = db.get_joined_jios(
         update.effective_user.id,
         limit=min(50, InlineKeyboardMarkupLimit.TOTAL_BUTTON_NUMBER - 1),
@@ -140,3 +141,7 @@ async def view_joined_jios(update: Update, _) -> None:
 
     await update.effective_chat.send_message(text, reply_markup=keyboard)
     await query.answer()
+
+
+async def nop(update: Update, _):
+    await update.callback_query.answer()

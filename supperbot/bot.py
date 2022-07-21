@@ -21,6 +21,7 @@ from supperbot.commands.start import (
     view_created_jios,
     cancel_view,
     view_joined_jios,
+    nop,
 )
 from supperbot.commands.creation import (
     create,
@@ -39,8 +40,11 @@ from supperbot.commands.ordering import (
     add_order,
     confirm_order,
     delete_order,
-    cancel_delete_order,
+    cancel_order_action,
     delete_order_item,
+    add_favourite_item,
+    confirm_favourite_item,
+    delete_favourite_item,
 )
 from supperbot.commands.close import (
     close_jio,
@@ -154,10 +158,25 @@ application.add_handler(
     CallbackQueryHandler(delete_order, pattern=CallbackType.DELETE_ORDER)
 )
 application.add_handler(
-    CallbackQueryHandler(cancel_delete_order, pattern=CallbackType.DELETE_ORDER_CANCEL)
+    CallbackQueryHandler(cancel_order_action, pattern=CallbackType.CANCEL_ORDER_ACTION)
 )
 application.add_handler(
     CallbackQueryHandler(delete_order_item, pattern=CallbackType.DELETE_ORDER_ITEM)
+)
+
+# Adding favourite orders
+application.add_handler(
+    CallbackQueryHandler(add_favourite_item, pattern=CallbackType.FAVOURITE_ITEM)
+)
+application.add_handler(
+    CallbackQueryHandler(
+        confirm_favourite_item, pattern=CallbackType.CONFIRM_FAVOURITE_ITEM
+    )
+)
+application.add_handler(
+    CallbackQueryHandler(
+        delete_favourite_item, pattern=CallbackType.REMOVE_FAVOURITE_ITEM
+    )
 )
 
 
@@ -196,6 +215,9 @@ application.add_handler(CommandHandler("help", help_command))
 # InlineQuery and InlineQuery result handler
 application.add_handler(InlineQueryHandler(inline_query))
 application.add_handler(ChosenInlineResultHandler(shared_jio, pattern="order"))
+
+# No-Operation (empty buttons)
+application.add_handler(CallbackQueryHandler(nop, pattern=CallbackType.NOP))
 
 # Not yet implemented callbacks
 unimplemented_callbacks = "|".join(

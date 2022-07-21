@@ -217,21 +217,24 @@ def order_message_keyboard_markup(order: Order) -> InlineKeyboardMarkup | None:
     jio_str = str(order.jio_id)
 
     if not jio.is_closed():
-        return InlineKeyboardMarkup.from_row(
+        return InlineKeyboardMarkup(
             [
-                InlineKeyboardButton(
-                    "➕ Add Order",
-                    callback_data=enums.join(CallbackType.ADD_ORDER, jio_str),
-                ),
-                # TODO: Consider if we really need a modify button
-                # InlineKeyboardButton(
-                #     "🤔 Modify Order",
-                #     callback_data=enums.join(CallbackType.MODIFY_ORDER, jio_str),
-                # ),
-                InlineKeyboardButton(
-                    "❌ Delete Order",
-                    callback_data=enums.join(CallbackType.DELETE_ORDER, jio_str),
-                ),
+                [
+                    InlineKeyboardButton(
+                        "➕ Add Order",
+                        callback_data=enums.join(CallbackType.ADD_ORDER, jio_str),
+                    ),
+                    InlineKeyboardButton(
+                        "❌ Delete Order",
+                        callback_data=enums.join(CallbackType.DELETE_ORDER, jio_str),
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
+                        "⭐ Favourite Item",
+                        callback_data=enums.join(CallbackType.FAVOURITE_ITEM, jio_str),
+                    )
+                ],
             ]
         )
 

@@ -1,6 +1,13 @@
 """Coroutines and helper functions relating to adding orders to existing jios."""
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Bot,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+)
 from telegram.constants import ParseMode
 from telegram.ext import ConversationHandler, ContextTypes
 
@@ -68,7 +75,12 @@ async def interested_owner(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def format_and_send_user_orders(
-    user_id: int, chat_id: int, jio_id: int, bot: Bot
+    user_id: int,
+    chat_id: int,
+    jio_id: int,
+    bot: Bot,
+    *,
+    remove_reply_markup: bool = False,
 ):
     # TODO: check if order even exists
     order = db.get_order(jio_id, user_id)
@@ -76,8 +88,22 @@ async def format_and_send_user_orders(
     message = format_order_message(order)
     keyboard = order_message_keyboard_markup(order)
 
+    if remove_reply_markup:
+        # Send a normal message to remove the Reply Keyboard,
+        # then edit in the InlineKeyboard
+        clear_msg = await bot.send_message(
+            chat_id=chat_id,
+            text="Please wait while the message loads...",
+            reply_markup=ReplyKeyboardRemove(),
+            parse_mode=ParseMode.HTML,
+        )
+        await clear_msg.delete()
+
     msg = await bot.send_message(
-        chat_id=chat_id, text=message, reply_markup=keyboard, parse_mode=ParseMode.HTML
+        chat_id=chat_id,
+        text=message,
+        reply_markup=keyboard,
+        parse_mode=ParseMode.HTML,
     )
     db.update_order_message_id(order.jio.id, order.user_id, msg.message_id)
 
@@ -95,12 +121,26 @@ async def add_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # TODO: Maybe allow adding multiple orders at once using line breaks?
-    message = f"Adding order for Order #{jio_id}\n\nPlease type out your order."
+    message = (
+        f"Adding order for Order #{jio.id} - {jio.restaurant}\n\n"
+        f"Please type out a single order, or choose from your favourites below."
+    )
+
+    # Get all favourite orders
+    favourite_orders = list(
+        db.get_favourite_orders(update.effective_user.id, jio.restaurant)
+    )
+
+    markup = [["↩ Cancel"]]
+    for i in range(0, len(favourite_orders), 2):
+        # Chunk the favourites into lines of two
+        markup.append(favourite_orders[i : i + 2])
+    keyboard = ReplyKeyboardMarkup(markup, resize_keyboard=True)
 
     # Keep track of current order for the reply
     context.user_data["current_order"] = jio_id
 
-    await update.effective_message.edit_text(text=message, reply_markup=None)
+    await update.effective_chat.send_message(text=message, reply_markup=keyboard)
     await query.answer()
     return CallbackType.CONFIRM_ORDER
 
@@ -108,15 +148,22 @@ async def add_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # TODO: Investigate the error that occurs here for some reason - sometimes update.message == None
     food = update.message.text
+
     jio_id = context.user_data["current_order"]
-    db.add_food_order(jio_id, update.effective_user.id, food)
     del context.user_data["current_order"]
 
+    if food != "↩ Cancel":
+        db.add_food_order(jio_id, update.effective_user.id, food)
+        await update_consolidated_orders(context.bot, jio_id)
+
     await format_and_send_user_orders(
-        update.effective_user.id, update.effective_chat.id, jio_id, context.bot
+        update.effective_user.id,
+        update.effective_chat.id,
+        jio_id,
+        context.bot,
+        remove_reply_markup=True,
     )
 
-    await update_consolidated_orders(context.bot, jio_id)
     return ConversationHandler.END
 
 
@@ -128,17 +175,22 @@ async def delete_order(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     jio_id = int(parse_callback_data(query.data)[1])
     jio_str = str(jio_id)
 
-    # TODO: Check if jio is closed
+    # Check if jio is closed
+    jio = db.get_jio(jio_id)
+
+    if jio.is_closed():
+        await query.answer("The jio is closed!")
+        return
 
     # Obtain all user orders and display in a column
-    text = "Please select the which of your food orders to delete:"
+    text = "Please select which food order to delete:"
     order = db.get_order(jio_id, update.effective_user.id)
 
     keyboard = InlineKeyboardMarkup.from_column(
         [
             InlineKeyboardButton(
                 "↩ Cancel",
-                callback_data=join(CallbackType.DELETE_ORDER_CANCEL, jio_str),
+                callback_data=join(CallbackType.CANCEL_ORDER_ACTION, jio_str),
             )
         ]
         # Use a list comprehension to generate the rest of the buttons
@@ -156,10 +208,9 @@ async def delete_order(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer()
 
 
-async def cancel_delete_order(
+async def cancel_order_action(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-
     query = update.callback_query
     jio_id = int(parse_callback_data(query.data)[1])
     order = db.get_order(jio_id, update.effective_user.id)
@@ -181,3 +232,91 @@ async def delete_order_item(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update_individual_order(context.bot, order)
     await query.answer()
     await update_consolidated_orders(context.bot, int(jio_str))
+
+
+async def add_favourite_item(update: Update, _):
+    query = update.callback_query
+    jio_str = parse_callback_data(query.data)[1]
+    jio_id = int(jio_str)
+    jio = db.get_jio(jio_id)
+    order = db.get_order(jio_id, update.effective_user.id)
+
+    if not order.food_list:
+        await update.effective_chat.send_message(
+            "You have yet to make any order. "
+            "Please add an order to choose a favourite item."
+        )
+        await query.answer()
+        return
+
+    # Obtain all user orders and display in a column
+    text = (
+        "Please select your current orders below to toggle between being in your "
+        "favourites for this restaurant.\n\n"
+        "Your favourite orders are saved per restaurant, and will be shown when you "
+        "are adding an order for a jio to that restaurant.\n\n"
+        "Orders which are already favourite'd are marked with a ⭐."
+    )
+
+    favourites = db.get_favourite_orders(update.effective_user.id, jio.restaurant)
+
+    markup = [
+        InlineKeyboardButton(
+            "↩ Cancel",
+            callback_data=join(CallbackType.CANCEL_ORDER_ACTION, jio_str),
+        )
+    ]
+
+    for idx, food in enumerate(order.food_list):
+        if food in favourites:
+            row = InlineKeyboardButton(
+                text="⭐ " + food,
+                callback_data=join(
+                    CallbackType.REMOVE_FAVOURITE_ITEM,
+                    jio_str,
+                    str(db.get_fav_id(update.effective_user.id, jio.restaurant, food)),
+                ),
+            )
+
+        else:
+            row = InlineKeyboardButton(
+                text=food,
+                callback_data=join(
+                    CallbackType.CONFIRM_FAVOURITE_ITEM,
+                    jio_str,
+                    jio.restaurant,
+                    str(idx),
+                ),
+            )
+
+        markup.append(row)
+
+    keyboard = InlineKeyboardMarkup.from_column(markup)
+
+    await query.answer()
+    await update.effective_message.edit_text(text, reply_markup=keyboard)
+
+
+async def confirm_favourite_item(update: Update, _):
+    query = update.callback_query
+    _, jio_str, restaurant, idx_str = parse_callback_data(query.data)
+    idx = int(idx_str)
+
+    # Get food name
+    jio_id = int(jio_str)
+    order = db.get_order(jio_id, update.effective_user.id)
+    food = order.food_list[idx]
+
+    # Update database
+    # TODO: What if too many - need check
+    db.add_favourite_order(update.effective_user.id, restaurant, food)
+
+    await add_favourite_item(update, _)
+
+
+async def delete_favourite_item(update: Update, _):
+    query = update.callback_query
+    fav_id = int(parse_callback_data(query.data)[2])
+
+    db.remove_favourite_order(fav_id, update.effective_user.id)
+    await add_favourite_item(update, _)
