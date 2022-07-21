@@ -243,19 +243,28 @@ def order_message_keyboard_markup(order: Order) -> InlineKeyboardMarkup | None:
         return None
 
     if order.has_paid():
-        return InlineKeyboardMarkup.from_button(
+        result = [
             InlineKeyboardButton(
                 "Undo Payment Declaration",
                 callback_data=join(CallbackType.UNDO_PAYMENT, jio_str),
             )
-        )
+        ]
+    else:
+        result = [
+            InlineKeyboardButton(
+                "Declare Payment",
+                callback_data=join(CallbackType.DECLARE_PAYMENT, jio_str),
+            )
+        ]
 
-    return InlineKeyboardMarkup.from_button(
+    result.append(
         InlineKeyboardButton(
-            "Declare Payment",
-            callback_data=join(CallbackType.DECLARE_PAYMENT, jio_str),
+            "⭐ Favourite Item",
+            callback_data=enums.join(CallbackType.FAVOURITE_ITEM, jio_str),
         )
     )
+
+    return InlineKeyboardMarkup.from_column(result)
 
 
 async def update_individual_order(bot: Bot, order: Order) -> None:

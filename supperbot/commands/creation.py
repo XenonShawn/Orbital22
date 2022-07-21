@@ -43,7 +43,9 @@ async def create(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Callback
     )
 
     # TODO: Abstract out the following to a separate method call
-    reply_markup = ReplyKeyboardMarkup([["McDonalds", "Al Amaan"], ["↩ Cancel"]])
+    reply_markup = ReplyKeyboardMarkup(
+        [["McDonalds", "Al Amaan"], ["↩ Cancel"]], resize_keyboard=True
+    )
 
     await update.effective_chat.send_message(message, reply_markup=reply_markup)
 

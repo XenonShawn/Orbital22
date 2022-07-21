@@ -202,7 +202,18 @@ def update_order_payment(jio_id: int, user_id: int, status: PaidStatus):
 
 #
 # Favourite Orders
+# NOTE: Too many functions. Consider refactoring, the names are quite confusing
 #
+
+
+def get_favourite_restaurants(user_id: int) -> set[str]:
+    """
+    Returns the list of restaurants for which the user has a favourite item.
+    :param user_id:
+    :return:
+    """
+    stmt = select(FavouriteOrder.restaurant).filter_by(user_id=user_id)
+    return set(_session.scalars(stmt).fetchall())
 
 
 def get_favourite_orders(user_id: int, restaurant: str) -> set[str]:
@@ -217,6 +228,11 @@ def get_fav_id(user_id: int, restaurant: str, food: str) -> int:
     stmt = select(FavouriteOrder.id).filter_by(
         user_id=user_id, restaurant=restaurant, food=food
     )
+    return _session.scalars(stmt).one()
+
+
+def get_favourite(fav_id: int) -> FavouriteOrder:
+    stmt = select(FavouriteOrder).filter_by(id=fav_id)
     return _session.scalars(stmt).one()
 
 

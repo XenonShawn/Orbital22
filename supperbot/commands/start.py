@@ -2,11 +2,11 @@
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.constants import InlineKeyboardMarkupLimit
+from telegram.constants import InlineKeyboardMarkupLimit, ParseMode
 from telegram.error import BadRequest
 
 from supperbot.db import db
-from supperbot.enums import CallbackType, join
+from supperbot.enums import CallbackType, join, parse_callback_data
 
 
 async def help_command(update: Update, _) -> None:
@@ -33,10 +33,14 @@ async def start(update: Update, _) -> None:
                 "🆕 Create Supper Jio", callback_data=CallbackType.CREATE_JIO
             ),
             InlineKeyboardButton(
-                "📖 View Your Jios", callback_data=CallbackType.VIEW_CREATED_JIOS
+                "📖 View Your Created Jios", callback_data=CallbackType.VIEW_CREATED_JIOS
             ),
             InlineKeyboardButton(
                 "📑 View Joined Jios", callback_data=CallbackType.VIEW_JOINED_JIOS
+            ),
+            InlineKeyboardButton(
+                "🍿 View Favourite Items",
+                callback_data=CallbackType.MAIN_MENU_FAVOURITES,
             ),
         ]
     )
@@ -141,6 +145,128 @@ async def view_joined_jios(update: Update, _) -> None:
 
     await update.effective_chat.send_message(text, reply_markup=keyboard)
     await query.answer()
+
+
+async def view_favourites(update: Update, _):
+    """
+    Allow users to view their favourite items for each restaurant they are in.
+    """
+
+    # try:
+    #     await update.effective_message.edit_reply_markup(None)
+    # except BadRequest as e:
+    #     logging.error(f"`view_favourites` unable to edit previous message: {e}")
+
+    await update.callback_query.answer()
+
+    # Obtain all restaurants they have favourite items for
+    restaurants = db.get_favourite_restaurants(update.effective_user.id)
+
+    markup = [
+        InlineKeyboardButton("↩ Cancel", callback_data=CallbackType.CANCEL_VIEW)
+    ] + [
+        InlineKeyboardButton(
+            r, callback_data=join(CallbackType.VIEW_FAVOURITE_ITEMS, r)
+        )
+        for r in restaurants
+    ]
+    keyboard = InlineKeyboardMarkup.from_column(markup)
+
+    message = (
+        "You can view your favourite items for each of the restaurants below.\n\n"
+        "Favourite items can be added by joining a Jio and adding your items there."
+    )
+
+    await update.effective_message.edit_text(message, reply_markup=keyboard)
+
+
+async def view_restaurant_favourites(update: Update, _):
+    # try:
+    #     await update.effective_message.edit_reply_markup(None)
+    # except BadRequest as e:
+    #     logging.error(
+    #         f"`view_restaurant_favourites` unable to edit previous message: {e}"
+    #     )
+    query = update.callback_query
+    await query.answer()
+
+    # Obtain the favourite foods
+    restaurant = parse_callback_data(query.data)[1]
+    favourite = db.get_favourite_orders(update.effective_user.id, restaurant)
+
+    markup = [
+        InlineKeyboardButton("↩ Cancel", callback_data=CallbackType.CANCEL_VIEW)
+    ] + [
+        InlineKeyboardButton(
+            food,
+            callback_data=join(
+                CallbackType.MAIN_MENU_REMOVE_FAV_ITEM,
+                restaurant,
+                str(db.get_fav_id(update.effective_user.id, restaurant, food)),
+            ),
+        )
+        for food in favourite
+    ]
+    keyboard = InlineKeyboardMarkup.from_column(markup)
+
+    message = (
+        "The following are your favourite items from past orders.\n\n"
+        "You can remove them by clicking on them."
+    )
+
+    await update.effective_message.edit_text(message, reply_markup=keyboard)
+
+
+async def main_menu_confirm_favourite_action(update: Update, _):
+
+    # try:
+    #     await update.effective_message.edit_reply_markup(None)
+    # except BadRequest as e:
+    #     logging.error(
+    #         f"`main_menu_confirm_favourite_action` unable to edit previous message: {e}"
+    #     )
+    query = update.callback_query
+    await query.answer()
+
+    _, restaurant, idx_str = parse_callback_data(query.data)
+    favourite_order = db.get_favourite(int(idx_str))
+
+    markup = [
+        InlineKeyboardButton(
+            "✅ Yes",
+            callback_data=join(
+                CallbackType.MAIN_MENU_CONFIRM_DELETE_FAV_ITEM, restaurant, idx_str
+            ),
+        ),
+        InlineKeyboardButton(
+            "❌ No",
+            callback_data=join(CallbackType.VIEW_FAVOURITE_ITEMS, restaurant),
+        ),
+    ]
+    keyboard = InlineKeyboardMarkup.from_row(markup)
+    message = (
+        f"You are about to delete <b>{favourite_order.food}</b> from "
+        f"<b>{restaurant}</b>. Are you sure?"
+    )
+
+    await update.effective_message.edit_text(
+        message, reply_markup=keyboard, parse_mode=ParseMode.HTML
+    )
+
+
+async def main_menu_confirm_delete_fav_item(update: Update, _):
+    # try:
+    #     await update.effective_message.edit_reply_markup(None)
+    # except BadRequest as e:
+    #     logging.error(
+    #         f"`main_menu_confirm_delete_fav_item` unable to edit previous message: {e}"
+    #     )
+    query = update.callback_query
+    await query.answer()
+
+    _, restaurant, idx_str = parse_callback_data(query.data)
+    db.remove_favourite_order(int(idx_str), update.effective_user.id)
+    await view_restaurant_favourites(update, _)
 
 
 async def nop(update: Update, _):

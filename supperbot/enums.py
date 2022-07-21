@@ -64,6 +64,9 @@ class CallbackType(str, Enum):
     REMOVE_FAVOURITE_ITEM = "402"  # Format - 142:jio_id:favourite_item_idx
 
     MAIN_MENU_FAVOURITES = "410"
+    VIEW_FAVOURITE_ITEMS = "411"
+    MAIN_MENU_REMOVE_FAV_ITEM = "412"  # 412:restaurant:favourite_item_idx
+    MAIN_MENU_CONFIRM_DELETE_FAV_ITEM = "413"  # 413:restaurant:favourite_item_idx
 
     NOP = "999"
 

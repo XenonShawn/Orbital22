@@ -21,6 +21,10 @@ from supperbot.commands.start import (
     view_created_jios,
     cancel_view,
     view_joined_jios,
+    view_favourites,
+    view_restaurant_favourites,
+    main_menu_confirm_favourite_action,
+    main_menu_confirm_delete_fav_item,
     nop,
 )
 from supperbot.commands.creation import (
@@ -179,6 +183,31 @@ application.add_handler(
     )
 )
 
+# Viewing favourites
+application.add_handler(
+    CallbackQueryHandler(view_favourites, pattern=CallbackType.MAIN_MENU_FAVOURITES)
+)
+
+# Viewing favourite items in main menu
+application.add_handler(
+    CallbackQueryHandler(
+        view_restaurant_favourites, pattern=CallbackType.VIEW_FAVOURITE_ITEMS
+    )
+)
+
+# Confirming whether to delete favourite item
+application.add_handler(
+    CallbackQueryHandler(
+        main_menu_confirm_favourite_action,
+        pattern=CallbackType.MAIN_MENU_REMOVE_FAV_ITEM,
+    )
+)
+application.add_handler(
+    CallbackQueryHandler(
+        main_menu_confirm_delete_fav_item,
+        pattern=CallbackType.MAIN_MENU_CONFIRM_DELETE_FAV_ITEM,
+    )
+)
 
 # Close and reopen jio handler
 application.add_handler(CallbackQueryHandler(close_jio, pattern=CallbackType.CLOSE_JIO))
