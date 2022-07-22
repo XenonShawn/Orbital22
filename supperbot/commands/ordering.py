@@ -255,6 +255,7 @@ async def add_favourite_item(update: Update, _):
         "favourites for this restaurant.\n\n"
         "Your favourite orders are saved per restaurant, and will be shown when you "
         "are adding an order for a jio to that restaurant.\n\n"
+        "You can also view your favourites through /favourites.\n\n"
         "Orders which are already favourite'd are marked with a ⭐."
     )
 
@@ -309,7 +310,12 @@ async def confirm_favourite_item(update: Update, _):
 
     # Update database
     # TODO: What if too many - need check
-    db.add_favourite_order(update.effective_user.id, restaurant, food)
+    if not db.add_favourite_order(update.effective_user.id, restaurant, food):
+        await update.effective_chat.send_message(
+            "You have too many favourite items for this restaurant. "
+            "Please remove some by going to /start and viewing your favourite orders."
+        )
+        return
 
     await add_favourite_item(update, _)
 

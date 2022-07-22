@@ -156,8 +156,8 @@ async def view_favourites(update: Update, _):
     #     await update.effective_message.edit_reply_markup(None)
     # except BadRequest as e:
     #     logging.error(f"`view_favourites` unable to edit previous message: {e}")
-
-    await update.callback_query.answer()
+    if update.callback_query:
+        await update.callback_query.answer()
 
     # Obtain all restaurants they have favourite items for
     restaurants = db.get_favourite_restaurants(update.effective_user.id)
@@ -177,7 +177,7 @@ async def view_favourites(update: Update, _):
         "Favourite items can be added by joining a Jio and adding your items there."
     )
 
-    await update.effective_message.edit_text(message, reply_markup=keyboard)
+    await update.effective_chat.send_message(message, reply_markup=keyboard)
 
 
 async def view_restaurant_favourites(update: Update, _):

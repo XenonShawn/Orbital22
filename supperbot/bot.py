@@ -73,7 +73,12 @@ async def unrecognized_callback(update: Update, _) -> None:
 
 
 async def set_commands(context: CallbackContext) -> None:
-    await context.bot.set_my_commands([("/start", "Start the bot")])
+    await context.bot.set_my_commands(
+        [
+            ("/start", "Start the bot"),
+            ("/favourites", "View your favourite items for each restaurant"),
+        ]
+    )
     logging.info(f"Started as {context.bot.name}")
 
 
@@ -186,6 +191,9 @@ application.add_handler(
 # Viewing favourites
 application.add_handler(
     CallbackQueryHandler(view_favourites, pattern=CallbackType.MAIN_MENU_FAVOURITES)
+)
+application.add_handler(
+    CommandHandler("favourites", view_favourites, filters.ChatType.PRIVATE)
 )
 
 # Viewing favourite items in main menu

@@ -239,7 +239,7 @@ def get_favourite(fav_id: int) -> FavouriteOrder:
 def add_favourite_order(user_id: int, restaurant: str, food: str) -> bool:
     """
     Adds the user's favourite orders for a specified restaurant.
-    Each user can only have up to 20 favourite orders per restaurant.
+    Each user can only have up to 10 favourite orders per restaurant.
 
     :param user_id: The user's id.
     :param restaurant: The restaurant's name.
@@ -247,7 +247,7 @@ def add_favourite_order(user_id: int, restaurant: str, food: str) -> bool:
     :return: A boolean indicating whether the upsert was successful.
     """
     favourite = get_favourite_orders(user_id, restaurant)
-    if len(favourite) >= 20:
+    if len(favourite) >= 10:
         return False
 
     if food not in favourite:
